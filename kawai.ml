@@ -80,6 +80,21 @@ let files =
   (* todo corriger chemain de fichier incomplet (manque .kwa ou ./tests/)*)
   | filename -> filename
 
+
+let load_file_content filename =
+  let ic = open_in filename in
+  let rec read_lines acc =
+    match input_line ic with
+    | line -> read_lines (line :: acc)
+    | exception End_of_file -> close_in ic; List.rev acc
+  in
+  read_lines []
+
+let get_line filename line_num =
+  let lines = load_file_content filename in
+  try List.nth lines (line_num - 1) with
+  | _ -> ""
+
 let () =
   let exit code = ( 
       if !input_files = [] then
@@ -91,7 +106,10 @@ let () =
       let l = b.pos_lnum in
       let fc = b.pos_cnum - b.pos_bol + 1 in
       let lc = e.pos_cnum - b.pos_bol + 1 in
-      eprintf "File \"%s\", line %d, characters %d-%d:\n" f l fc lc
+      eprintf "File \"%s\", line %d, characters %d-%d:\n" f l fc lc;
+      let line_content = get_line f l in
+      eprintf "%s\n" line_content;
+      eprintf "%s\n" (String.make (fc - 1) ' ' ^ String.make (lc - fc + 1) '^')
   in
   let c  = open_in f in
   let lb = Lexing.from_channel c in
@@ -111,9 +129,10 @@ let () =
      eprintf "\027[91mlexical error:\027[0m %s@." s;
      exit 1
   | Kawaparser.Error ->
-     report (lexeme_start_p lb, lexeme_end_p lb);
-     eprintf "\027[91msyntax error\027[0m@.";
-     exit 1
+      report (lexeme_start_p lb, lexeme_end_p lb);
+      eprintf "\027[91msyntax error\027[0m@.";
+      Kawalexer.print_token_list (); (* Affiche la liste des tokens *)
+      exit 1
   | Interpreter.Error s ->
      eprintf "\027[91minterpreter error: \027[0m%s@." s;
      exit 1

@@ -10,6 +10,12 @@ type typ =
   | TBool
   | TClass of string
 
+let typ_of_string = function
+  | "int" -> TInt
+  | "bool" -> TBool
+  | "void" -> TVoid
+  | classname -> TClass classname
+
 let typ_to_string = function
   | TVoid    -> "void"
   | TInt     -> "int"
@@ -17,9 +23,28 @@ let typ_to_string = function
   | TClass c -> c
 
 type unop  = Opp | Not
+let string_of_unop unop = match unop with 
+| Opp -> "Opp"
+| Not -> "Not"
+
 type binop = Add | Sub | Mul | Div | Rem
            | Lt  | Le  | Gt | Ge | Eq  | Neq
            | And | Or
+
+let string_of_biop (biop:binop) :string= match biop with 
+| Add -> "Add"
+| Sub -> "Sub"
+| Mul -> "Mul"
+| Div -> "Div"
+| Rem -> "Rem"
+| Lt -> "Lt"
+| Le -> "Le"
+| Gt -> "Gt"
+| Ge -> "Ge"
+| Eq -> "Eq"
+| Neq -> "Neq"
+| And -> "And"
+| Or -> "Or"
 
 (* Expressions *)
 type expr =
@@ -40,8 +65,22 @@ type expr =
 
 (* Accès mémoire : variable ou attribut d'un objet *)
 and mem_access =
-  | Var   of string
+  | Var   of string (* Variable *)
   | Field of expr (* objet *) * string (* nom d'un attribut *)
+
+
+let rec string_of_expr (e:expr): string =
+  let fmt = Printf.sprintf in
+  match e with
+  | Int i -> (fmt "Int(%d)" i)
+  | Bool b -> (fmt "Bool(%b)" b)
+  | Unop(unop, expr) -> (fmt "Unop(%s, %s)"  (string_of_unop unop)  (string_of_expr expr))
+  | Binop(biop, e1, e2) -> (fmt "Biop(%s, %s, %s)"  (string_of_biop biop)  (string_of_expr e1) (string_of_expr e2))
+  | Get _ -> "Get"
+  | This -> "This"
+  | New c -> (fmt "%s" c)
+  | NewCstr(c,_) -> (fmt "%s" c)
+  | MethCall(e1, c, el) -> (fmt "%s" c)
 
 (* Instructions *)
 type instr =

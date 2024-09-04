@@ -33,11 +33,30 @@ let exec_prog (p: program): unit =
         
     and eval (e: expr): value = match e with
       | Int n  -> VInt n
-      | _ -> failwith "case not implemented in eval"
+      | Binop(op, e1, e2) -> begin
+        let (v1, v2) = (eval e1, eval e2) in
+        match (op, v1, v2) with 
+        | Add, VInt a, VInt b -> VInt(a + b)
+        | Sub, VInt a, VInt b -> VInt(a - b)
+        | Mul, VInt a, VInt b -> VInt(a * b)
+        | Div, VInt a, VInt b -> 
+          if b = 0 then failwith "Division by zero :("
+          else VInt(a / b)
+        | _ -> failwith (Printf.sprintf "case not implemented in eval : cant stand operation")
+        end
+      | Get(Var (x)) -> 
+          (match Hashtbl.find_opt env x with
+           | Some v -> v
+           | None -> failwith (Printf.sprintf "undefined variable: %s" x))
+      | _ -> failwith (Printf.sprintf "case not implemented in eval : %S" (Kawa.string_of_expr e))
     in
   
     let rec exec (i: instr): unit = match i with
       | Print e -> Printf.printf "%d\n" (evali e)
+      | Set(mem, var) -> 
+        let var = eval var in
+        match mem with 
+        | Var x -> Hashtbl.replace env x var
       | _ -> failwith "case not implemented in exec"
     and exec_seq s = 
       List.iter exec s
@@ -45,5 +64,7 @@ let exec_prog (p: program): unit =
 
     exec_seq s
   in
+  let hstbl = Hashtbl.create 1 in
+  List.iter (fun (n, _) -> Hashtbl.add hstbl n Null) p.globals;
   
-  exec_seq p.main (Hashtbl.create 1)
+  exec_seq p.main (hstbl)
