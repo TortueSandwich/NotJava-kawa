@@ -9,6 +9,11 @@ and obj = {
   cls:    string;
   fields: (string, value) Hashtbl.t;
 }
+let string_of_value v = match v with
+  | VInt i -> string_of_int i
+  | VBool b -> string_of_bool b
+  (* | VObj o *)
+  | Null -> "!NULL!"
 
 exception Error of string
 exception Return of value
@@ -26,6 +31,7 @@ let exec_prog (p: program): unit =
       | _ -> assert false
     and evalb e = match eval e with
       | VBool b -> b
+      | VInt n -> n <> 0
       | _ -> assert false
     and evalo e = match eval e with
       | VObj o -> o
@@ -39,10 +45,12 @@ let exec_prog (p: program): unit =
         | Add, VInt a, VInt b -> VInt(a + b)
         | Sub, VInt a, VInt b -> VInt(a - b)
         | Mul, VInt a, VInt b -> VInt(a * b)
+        | Rem, VInt a, VInt b -> VInt(a mod b)
         | Div, VInt a, VInt b -> 
           if b = 0 then failwith "Division by zero :("
           else VInt(a / b)
-        | _ -> failwith (Printf.sprintf "case not implemented in eval : cant stand operation")
+        | Neq, a, b -> VBool((evalb e1) != (evalb e2))
+        | _ -> failwith (Printf.sprintf "case not implemented in eval : cant stand operation %s on %s & %s" (string_of_biop op) (string_of_value v1) (string_of_value v2))
         end
       | Get(Var (x)) -> 
           (match Hashtbl.find_opt env x with
@@ -53,10 +61,16 @@ let exec_prog (p: program): unit =
   
     let rec exec (i: instr): unit = match i with
       | Print e -> Printf.printf "%d\n" (evali e)
-      | Set(mem, var) -> 
+      | Set(mem, var) -> begin
         let var = eval var in
         match mem with 
-        | Var x -> Hashtbl.replace env x var
+          | Var x -> Hashtbl.replace env x var
+        end
+      | While(c,d) -> begin
+          let rec aux () = if evalb c then (exec_seq d; aux ()) in
+          aux ()
+        end
+      | If(c, a, b) -> if evalb c then exec_seq a else exec_seq b
       | _ -> failwith "case not implemented in exec"
     and exec_seq s = 
       List.iter exec s

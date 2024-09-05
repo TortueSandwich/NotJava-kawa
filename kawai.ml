@@ -98,7 +98,7 @@ let get_line filename line_num =
 let () =
   let exit code = ( 
       if !input_files = [] then
-      Printf.printf "\027[2mRe-execute using\n./kawai %s %s\027[0m\n" (List.nth files 0) (if !show_source then "-s" else "");
+      Printf.printf "\027[2mRe-execute using\n./kawai.exe %s %s\027[0m\n" (List.nth files 0) (if !show_source then "-s" else "");
       exit code
     ) in
   let compile f =
@@ -131,13 +131,14 @@ let () =
   | Kawaparser.Error ->
       report (lexeme_start_p lb, lexeme_end_p lb);
       eprintf "\027[91msyntax error\027[0m@.";
-      Kawalexer.print_token_list (); (* Affiche la liste des tokens *)
+      Kawalexer.print_token_list ();
       exit 1
   | Interpreter.Error s ->
      eprintf "\027[91minterpreter error: \027[0m%s@." s;
      exit 1
   | e ->
      eprintf "\027[91mAnomaly:\027[0m %s\n@." (Printexc.to_string e);
+     Kawalexer.print_token_list ();
      exit 2
   in
   List.iter compile (List.rev files);

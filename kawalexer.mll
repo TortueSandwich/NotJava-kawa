@@ -16,6 +16,9 @@
         "main",     MAIN;
         "var",      VAR;
         "int",      TYPE("int");
+        "if",       IF;
+        "else",     ELSE;
+        "while",    WHILE;
       ] ;
     fun s ->
       try  Hashtbl.find h s
@@ -38,7 +41,12 @@
     | TIMES -> "TIMES"
     | DIV -> "DIV"
     | EQ -> "EQ"
+    | NOTEQ -> "NOTEQ"
     | EOF -> "EOF"
+    | WHILE -> "while"
+    | IF -> "if"
+    | ELSE -> "else"
+    | MOD -> "%"
     | INT(n) -> Printf.sprintf "INT(%d)" n
     | _ -> "UNKNOWN"
 
@@ -71,8 +79,10 @@ rule token = parse
   | "-"  { add_token MINUS; MINUS }
   | "*"  { add_token TIMES; TIMES }
   | "/"  { add_token DIV; DIV }
+  | "%"  { add_token MOD; MOD }
 
   | "=" { add_token EQ; EQ }
+  | "!=" { add_token NOTEQ; NOTEQ }
 
   | _    { raise (Error ("unknown character : " ^ lexeme lexbuf)) }
   | eof  { let tok = EOF in add_token tok; tok }
