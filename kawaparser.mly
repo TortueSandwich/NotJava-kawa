@@ -17,8 +17,8 @@
 %token EOF
 
 %nonassoc EQ NOTEQ
+%left PLUS MINUS
 %left TIMES DIV MOD
-%right PLUS MINUS
 
 %start program
 %type <Kawa.program> program
