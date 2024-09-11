@@ -95,6 +95,23 @@ let get_line filename line_num =
   try List.nth lines (line_num - 1) with
   | _ -> ""
 
+  let lex_and_print_tokens c =
+    let lb = Lexing.from_channel c in
+    let rec loop ligne =
+      let tok = Kawalexer.token lb in
+      let pos = lb.lex_curr_p.pos_lnum in
+      if pos <> ligne then print_endline "";
+      Printf.printf "%s" (Kawalexer.token_to_string tok);
+      if tok <> EOF then loop pos
+    in
+    try
+      loop 1;
+      print_endline "";
+    with
+    | Kawalexer.Error msg ->
+        Printf.eprintf "Lexing error: %s\n" msg
+    | End_of_file -> ()
+
 let () =
   let exit code = ( 
       if !input_files = [] then
@@ -113,7 +130,11 @@ let () =
   in
   let c  = open_in f in
   let lb = Lexing.from_channel c in
-  if !show_source then (Printf.printf "\027[2mSource code of %s :\027[0m\n" f; print_source f);
+  if !show_source then begin 
+    Printf.printf "\027[2mSource code of %s :\027[0m\n" f;
+    lex_and_print_tokens (open_in f);
+  end;
+    (* (Printf.printf "\027[2mSource code of %s :\027[0m\n" f; print_source f); *)
   
   try
     Printf.printf "\027[2mOutput of %s :\027[0m\n" f;
@@ -126,19 +147,19 @@ let () =
   with
   | Kawalexer.Error s ->
      report (lexeme_start_p lb, lexeme_end_p lb);
-     eprintf "\027[91mlexical error:\027[0m %s@." s;
+     eprintf "\027[91mlexical error:\027[0(lexer)m %s@." s;
      exit 1
   | Kawaparser.Error ->
       report (lexeme_start_p lb, lexeme_end_p lb);
-      eprintf "\027[91msyntax error\027[0m@.";
-      Kawalexer.print_token_list ();
+      eprintf "\027[91msyntax error\027[0m(parser)@.";
+      (* lex_and_print_tokens (open_in f); *)
       exit 1
   | Interpreter.Error s ->
      eprintf "\027[91minterpreter error: \027[0m%s@." s;
      exit 1
   | e ->
      eprintf "\027[91mAnomaly:\027[0m %s\n@." (Printexc.to_string e);
-     Kawalexer.print_token_list ();
+     (* lex_and_print_tokens (open_in f); *)
      exit 2
   in
   List.iter compile (List.rev files);

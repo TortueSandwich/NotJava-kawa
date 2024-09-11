@@ -6,17 +6,17 @@
 %}
 
 %token <int> INT
-%token <string> IDENT
-%token MAIN
+%token <bool> BOOL
+%token <string> TYPE IDENT
+%token MAIN PRINT 
 %token LPAR RPAR BEGIN END SEMI
-%token PLUS MINUS TIMES DIV MOD
-%token PRINT EQ NOTEQ
-%token VAR 
+%token PLUS MINUS TIMES DIV MOD EQ NEQ
+%token VAR AFFECT 
 %token IF ELSE WHILE
-%token <string> TYPE
+%token CLASS ATTRIBUTE NEW POINT
 %token EOF
 
-%nonassoc EQ NOTEQ
+%nonassoc EQ NEQ
 %left PLUS MINUS
 %left TIMES DIV MOD
 
@@ -26,45 +26,62 @@
 %%
 
 program:
-| globals=global_decls MAIN BEGIN main=list(instruction) END EOF
-    { {classes=[]; globals; main} }
-// | MAIN BEGIN main=list(instruction) END EOF
-//     { {classes=[]; globals=[]; main} }
+| global_decls class_decls MAIN BEGIN instruction_seq END EOF
+    { { globals = $1; classes = $2; main = $5 } }
 ;
 
 global_decls:
 | { [] }
-| global_decl SEMI rest=global_decls { $1 :: rest }
+| global_decl global_decls { $1 :: $2 }
 ;
 
 global_decl:
-| VAR t=TYPE i=IDENT { (i, Kawa.typ_of_string t) }
+| VAR IDENT IDENT SEMI { ($3, Kawa.typ_of_string $2) }
 ;
 
+class_decls:
+| { [] }
+| class_decl class_decls { $1 :: $2 }
+;
+
+class_decl:
+| CLASS IDENT BEGIN attribute_decls END
+    { { class_name = $2; attributes = $4; methods = []; parent = None } }
+;
+
+attribute_decls:
+| { [] }
+| attribute_decl attribute_decls { $1 :: $2 }
+;
+
+attribute_decl:
+| ATTRIBUTE IDENT IDENT SEMI { ($3, Kawa.typ_of_string $2) }
+;
 
 instruction:
-| PRINT LPAR e=expression RPAR SEMI { Print(e) }
-| v=IDENT EQ e=expression SEMI { Set(Var(v), e) }
-// | WHILE LPAR e=expression RPAR rest=instruction { While(e, rest :: [])}
-| WHILE e=expression BEGIN rest=instruction_seq END { While(e, rest) }
-// | IF LPAR e=expression RPAR rest=instruction {If(e, rest :: [], [])}
-| IF e=expression BEGIN rest=instruction_seq END { If(e, rest, []) }
-| IF e=expression BEGIN rest1=instruction_seq END ELSE BEGIN rest2=instruction_seq END { If(e, rest1, rest2) }
+| PRINT LPAR expression RPAR SEMI { Print($3) }
+| IDENT AFFECT expression SEMI { Set(Var($1), $3) }
+| WHILE expression BEGIN instruction_seq END { While($2, $4) }
+// | IF expression BEGIN instruction_seq END { If($2, $4, []) }
+| IF expression BEGIN instruction_seq END ELSE BEGIN instruction_seq END { If($2, $4, $8) }
+// | lhs=expression AFFECT e=expression SEMI { Set(Expr(lhs), e) }
 ;
 
 instruction_seq:
 | { [] }
-| instruction rest=instruction_seq { $1 :: rest }
+| instruction instruction_seq { $1 :: $2 }
 ;
 
 expression:
-| n=INT { Int(n) }
-| v=IDENT { Get(Var(v)) } 
-| e1=expression NOTEQ e2=expression { Binop(Neq, e1, e2) }
-| e1=expression PLUS e2=expression { Binop(Add, e1, e2) }
-| e1=expression MINUS e2=expression { Binop(Sub, e1, e2) }
-| e1=expression TIMES e2=expression { Binop(Mul, e1, e2) }
-| e1=expression DIV e2=expression { Binop(Div, e1, e2) }
-| e1=expression MOD e2=expression { Binop(Rem, e1, e2) }
-| LPAR e=expression RPAR { e }
+| INT { Int($1) }
+| BOOL { Bool($1) }
+| NEW IDENT { New($2) }
+| LPAR expression RPAR { $2 }
+| expression EQ expression { Binop(Eq, $1, $3) }
+| expression NEQ expression { Binop(Neq, $1, $3) }
+| expression PLUS expression { Binop(Add, $1, $3) }
+| expression MINUS expression { Binop(Sub, $1, $3) }
+| expression TIMES expression { Binop(Mul, $1, $3) }
+| expression DIV expression { Binop(Div, $1, $3) }
+| expression MOD expression { Binop(Rem, $1, $3) }
 ;

@@ -4,54 +4,63 @@
 
   exception Error of string
 
-  let tokens = ref []
-
-  let add_token tok = 
-    tokens := tok :: !tokens
-
   let keyword_or_ident =
     let h = Hashtbl.create 17 in
     List.iter (fun (s, k) -> Hashtbl.add h s k)
       [ "print",    PRINT;
         "main",     MAIN;
         "var",      VAR;
-        "int",      TYPE("int");
+        (* "int",      TYPE("int"); *)
         "if",       IF;
         "else",     ELSE;
         "while",    WHILE;
+        "class",    CLASS;
+        "attribute",ATTRIBUTE;
+        "new",      NEW;
+        "true",     BOOL(true);
+        "false",    BOOL(false);
       ] ;
     fun s ->
       try  Hashtbl.find h s
       with Not_found -> IDENT(s)
 
+  let violet = "\027[35m"
+  let jaune = "\027[33m"
+  let vert = "\027[92m"
 
-  let token_to_string = function
-    | PRINT -> "PRINT"
-    | MAIN -> "MAIN"
-    | VAR -> "VAR"
-    | TYPE(t) -> Printf.sprintf "TYPE(%s)" t
-    | IDENT(s) -> Printf.sprintf "IDENT(%s)" s
-    | SEMI -> "SEMI"
-    | LPAR -> "LPAR"
-    | RPAR -> "RPAR"
-    | BEGIN -> "BEGIN"
-    | END -> "END"
-    | PLUS -> "PLUS"
-    | MINUS -> "MINUS"
-    | TIMES -> "TIMES"
-    | DIV -> "DIV"
-    | EQ -> "EQ"
-    | NOTEQ -> "NOTEQ"
+  let token_to_string s = 
+    let t = match s with
+    | PRINT -> violet^"print"
+    | MAIN -> "\027[34mmain"
+    | VAR -> violet^"var "
+    | TYPE(t) -> Printf.sprintf "ty(%s)" t
+    | IDENT(s) -> Printf.sprintf "\027[36mid(%s)" s
+    | INT(n) -> Printf.sprintf "\027[96m%d" n
+    | BOOL(b:bool) -> Printf.sprintf "\027[96m%b" b
+    | SEMI -> jaune^";"
+    | LPAR -> jaune^"("
+    | RPAR -> jaune^")"
+    | BEGIN -> jaune^"{"
+    | END -> jaune^"}"
+    | PLUS -> vert^"+"
+    | MINUS -> vert^"-"
+    | TIMES -> vert^"*"
+    | DIV -> vert^"/"
+    | EQ -> vert^" == "
+    | NEQ -> vert^" != "
+    | MOD -> vert^"%"
+    | AFFECT -> violet^" = "
+    | POINT -> "\027[4m."
     | EOF -> "EOF"
-    | WHILE -> "while"
-    | IF -> "if"
-    | ELSE -> "else"
-    | MOD -> "%"
-    | INT(n) -> Printf.sprintf "INT(%d)" n
-    | _ -> "UNKNOWN"
-
-  let print_token_list () =
-    List.iter (fun tok -> Printf.printf "%s\n" (token_to_string tok)) (List.rev !tokens)
+    | WHILE -> violet^"while "
+    | IF -> violet^"if "
+    | ELSE -> violet^"else "
+    | CLASS -> violet^"class "
+    | NEW -> violet^"new "
+    | ATTRIBUTE -> violet^"attribute "
+    (* | _ -> "UNKNOWN" *)
+    in t ^"\027[0m"
+    
 }
 
 let digit = ['0'-'9']
@@ -66,26 +75,28 @@ rule token = parse
   | "//" [^ '\n']* "\n"  { new_line lexbuf; token lexbuf }
   | "/*"                 { comment lexbuf; token lexbuf }
 
-  | number as n  { let tok = INT(int_of_string n) in add_token tok; tok }
-  | ident as id  { let tok = keyword_or_ident id in add_token tok; tok }
+  | number as n  { INT(int_of_string n) }
+  | ident as id  { keyword_or_ident id }
 
-  | ";"  { add_token SEMI; SEMI }
-  | "("  { add_token LPAR; LPAR }
-  | ")"  { add_token RPAR; RPAR }
-  | "{"  { add_token BEGIN; BEGIN }
-  | "}"  { add_token END; END }
+  | ";"  { SEMI }
+  | "("  { LPAR }
+  | ")"  { RPAR }
+  | "{"  { BEGIN }
+  | "}"  { END }
 
-  | "+"  { add_token PLUS; PLUS }
-  | "-"  { add_token MINUS; MINUS }
-  | "*"  { add_token TIMES; TIMES }
-  | "/"  { add_token DIV; DIV }
-  | "%"  { add_token MOD; MOD }
+  | "+"  { PLUS }
+  | "-"  { MINUS }
+  | "*"  { TIMES }
+  | "/"  { DIV }
+  | "%"  { MOD }
+  | "==" { EQ }
+  | "=" { AFFECT }
+  | "!=" { NEQ }
 
-  | "=" { add_token EQ; EQ }
-  | "!=" { add_token NOTEQ; NOTEQ }
+  | '.' { POINT }
 
   | _    { raise (Error ("unknown character : " ^ lexeme lexbuf)) }
-  | eof  { let tok = EOF in add_token tok; tok }
+  | eof  { let tok = EOF in tok }
 
 and comment = parse
   | "*/" { () }
