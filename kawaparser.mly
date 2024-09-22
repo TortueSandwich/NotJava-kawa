@@ -62,9 +62,7 @@ instruction:
 | PRINT LPAR expression RPAR SEMI { Print($3) }
 | IDENT AFFECT expression SEMI { Set(Var($1), $3) }
 | WHILE expression BEGIN instruction_seq END { While($2, $4) }
-// | IF expression BEGIN instruction_seq END { If($2, $4, []) }
 | IF expression BEGIN instruction_seq END ELSE BEGIN instruction_seq END { If($2, $4, $8) }
-// | lhs=expression AFFECT e=expression SEMI { Set(Expr(lhs), e) }
 ;
 
 instruction_seq:
@@ -76,6 +74,7 @@ expression:
 | INT { Int($1) }
 | BOOL { Bool($1) }
 | NEW IDENT { New($2) }
+| mem {Get($1)}
 | LPAR expression RPAR { $2 }
 | expression EQ expression { Binop(Eq, $1, $3) }
 | expression NEQ expression { Binop(Neq, $1, $3) }
@@ -85,3 +84,7 @@ expression:
 | expression DIV expression { Binop(Div, $1, $3) }
 | expression MOD expression { Binop(Rem, $1, $3) }
 ;
+
+mem:
+| IDENT { Var($1) }
+| mem POINT IDENT { Field(Get($1), $3) }
