@@ -1,0 +1,4 @@
+var bool b;
+main {
+    b = 2 < 3;
+}

@@ -131,11 +131,16 @@ let rec string_of_expr (e : expr) : string =
   | Binop (biop, e1, e2) ->
       fmt "Biop(%s, %s, %s)" (string_of_biop biop) (string_of_expr e1)
         (string_of_expr e2)
-  | Get _ -> "Get"
+  | Get m -> "Get(" ^ (string_of_meme m) ^")"
   | This -> "This"
   | New c -> fmt "%s" c
   | NewCstr (c, _) -> fmt "%s" c
   | MethCall (e1, c, el) -> fmt "%s" c
+and string_of_meme = function
+    | Var name -> name
+    | Field (obj, field_name) -> (
+      (string_of_expr obj) ^ "." ^ field_name
+    )
 
 let typ_to_string = function
   | TVoid -> "void"

@@ -95,18 +95,24 @@ let get_line filename line_num =
 
 let lex_and_print_tokens c =
   let lb = Lexing.from_channel c in
-  let rec loop ligne =
+  let rec loop ligne indent =
     let tok = Kawalexer.token lb in
     let pos = lb.lex_curr_p.pos_lnum in
-    if pos <> ligne then print_endline "";
+
+    let new_indent =
+      match tok with
+      | BEGIN -> indent + 2
+      | END -> max 0 (indent - 2)
+      | _ -> indent
+    in
+    if pos <> ligne then Printf.printf "\n%s" (String.make new_indent ' ');
     Printf.printf "%s" (Kawalexer.token_to_string tok);
-    if tok <> EOF then loop pos
+    if tok <> EOF then loop pos new_indent
   in
   try
-    loop 1;
+    loop 1 0;
     print_endline ""
   with
-  | Kawalexer.Error msg -> Printf.eprintf "Lexing error: %s\n" msg
   | End_of_file -> ()
 
 let () =
@@ -139,16 +145,20 @@ let () =
       flush stdout;
       let prog = Kawaparser.program Kawalexer.token lb in
       close_in c;
-      (* Typechecker.typecheck_prog prog; *)
+      Typechecker.typecheck_prog prog;
       Interpreter.exec_prog prog
+      
     with
     | Kawalexer.Error s ->
         report (lexeme_start_p lb, lexeme_end_p lb);
-        eprintf "\027[91mlexical error:\027[0(lexer)m %s@." s;
+        eprintf "\027[91mlexical error:\027[0m (lexer) %s@." s;
+        eprintf "\027[0m";
         exit 1
     | Kawaparser.Error ->
         report (lexeme_start_p lb, lexeme_end_p lb);
-        eprintf "\027[91msyntax error\027[0m(parser)@.";
+        eprintf "\027[91msyntax error\027[0m (parser)@.";
+        eprintf "\027[91msyntax error:\027[0m Unexpected token: %s\n"
+          (Kawalexer.token_to_string (Kawalexer.token lb));
         (* lex_and_print_tokens (open_in f); *)
         exit 1
     | Interpreter.Error s ->

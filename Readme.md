@@ -17,7 +17,7 @@ exemples d'utilisation :
 ./kawai.exe ./test/var.kwa
 ```
 ```sh
-./kawai.exe -s
+dune build && ./kawai.exe -s
 ```
 ```sh
 ./kawai.exe ./tests/min.kwa -s
