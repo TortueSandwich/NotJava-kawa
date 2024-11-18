@@ -106,6 +106,7 @@ expression:
 | THIS POINT field=IDENT { Get(Field(This, field)) }
 | e=expression POINT field=IDENT { Get(Field(e, field)) }
 
+// todo uop
 | LPAR expression RPAR { $2 }
 | expression EQ expression { Binop(Eq, $1, $3) }
 | expression NEQ expression { Binop(Neq, $1, $3) }
