@@ -164,6 +164,10 @@ let () =
     | Interpreter.Error s ->
         eprintf "\027[91minterpreter error: \027[0m%s@." s;
         exit 1
+
+    | Typechecker.Error s -> 
+        eprintf "\027[91mType error: \027[0m%s@." s;
+        exit 1
     | e ->
         eprintf "\027[91mAnomaly:\027[0m %s\n@." (Printexc.to_string e);
         (* lex_and_print_tokens (open_in f); *)

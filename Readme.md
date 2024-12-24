@@ -22,3 +22,8 @@ dune build && ./kawai.exe -s
 ```sh
 ./kawai.exe ./tests/min.kwa -s
 ```
+
+todo
+transtypage
+typelevel programming
+

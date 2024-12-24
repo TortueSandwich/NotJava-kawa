@@ -37,7 +37,7 @@
     | PRINT -> violet^"print"
     | MAIN -> "\027[34mmain"
     | VAR -> violet^"var "
-    | IDENT(s) -> Printf.sprintf "\027[36mid(%s)" s
+    | IDENT(s) -> Printf.sprintf "\027[36m%s" s
     | INT(n) -> Printf.sprintf "\027[96m%d" n
     | BOOL(b:bool) -> Printf.sprintf "\027[96m%b" b
     | SEMI -> jaune^";"
