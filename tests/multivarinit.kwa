@@ -1,0 +1,15 @@
+var int h = 5;
+var int x, y, z = 5;
+var oue maisoui = new oue();
+
+class oue {
+    method void constructor() {}
+    method void test() {}
+}
+
+main {
+  print(h);
+  print(x+y+z);
+  oue.test();
+  // affiche 5 puis 15 puis 420
+}

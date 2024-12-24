@@ -63,7 +63,6 @@
     | AND -> violet^"&&"
     | OR -> violet^"||"
 
-
     | EOF -> "EOF"
     | WHILE -> violet^"while"
     | IF -> violet^"if"
@@ -76,8 +75,54 @@
     | METHOD -> violet^"method"
     | THIS -> orange ^"this"
     
-    (* | _ -> "UNKNOWN" *)
+    | _ -> "UNKNOWN" 
     in t ^"\027[0m"
+
+  let token_to_string_debug s = 
+    let t = match s with
+    | PRINT -> "PRINT"
+    | MAIN -> "MAIN"
+    | VAR -> "VAR"
+    | IDENT(s) -> Printf.sprintf "IDENT(%s)" s
+    | INT(n) -> Printf.sprintf "IDENT(%d)" n
+    | BOOL(b:bool) -> Printf.sprintf "BOOL(%b)" b
+    | SEMI -> "SEMI"
+    | LPAR -> "LPAR"
+    | RPAR -> "RPAR"
+    | BEGIN -> "BEGIN"
+    | END -> "END"
+    | COMA -> "COMA"
+    | PLUS -> "PLUS"
+    | MINUS -> "MINUS"
+    | TIMES -> "TIMES"
+    | DIV -> "DIV"
+    | EQ -> "EQ"
+    | NEQ -> "NEQ"
+    | MOD -> "MOD"
+    | AFFECT -> "AFFECT"
+    | POINT -> "POINT"
+
+    | LT -> "LT"
+    | LEQ -> "LEQ"
+    | GT -> "GT"
+    | GEQ -> "GEQ"
+    | AND -> "AND"
+    | OR -> "OR"
+
+    | EOF -> "EOF"
+    | WHILE -> "WHILE"
+    | IF -> "IF"
+    | ELSE -> "ELSE"
+    | CLASS -> "CLASS"
+    | EXTENDS -> "EXTENDS"
+    | RETURN -> "RETURN"
+    | NEW -> "NEW"
+    | ATTRIBUTE -> "ATTRIBUTE"
+    | METHOD -> "METHOD"
+    | THIS -> "THIS"
+    
+    | _ -> "UNKNOWN"
+    in t 
     
 }
 

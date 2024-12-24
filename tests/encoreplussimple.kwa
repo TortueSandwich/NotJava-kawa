@@ -1,0 +1,11 @@
+var oue test;
+
+class oue {
+    method void constructor() {}
+    method void test() {}
+}
+
+main {
+    oue = new oue();
+    test.test();
+}

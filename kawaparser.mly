@@ -28,6 +28,9 @@
 %start program
 %type <Kawa.program> program
 
+
+%type <string list> var_decl_aux
+%type <((string*typ) * (expr option)) list> var_decl
 %%
 
 program:
@@ -37,23 +40,32 @@ program:
     list(instruction) 
   END EOF
   { 
-    let oue = List.flatten $1 in
-    let (vars, values) = List.split oue in
-    { globals = vars; classes = $2; main = $5 } 
+    let okayyy = List.flatten $1 in
+    let (oue, _) = List.split okayyy in
+    let truevals = List.filter (fun (_, opt) -> Option.is_some opt) okayyy in
+    let instrs = List.map (fun (x, value) -> Set(Var(fst x), Option.get value)) truevals in
+    { globals = oue; classes = $2; main = instrs @ $5 } 
   }
 ;
 
 
 var_decl:
-| VAR typ=IDENT vars=var_decl_aux SEMI { List.map (fun v -> (v, Kawa.typ_of_string typ)) vars }
-| VAR typ=IDENT vars=var_decl_aux AFFECT value=expression SEMI {
-  List.map (fun v -> (v, Kawa.typ_of_string typ)) vars 
+| VAR typ=IDENT vars=var_decl_aux SEMI { List.map (fun v -> 
+  (( (v, Kawa.typ_of_string typ) , None))
+) vars }
+| VAR typ=IDENT vars=var_decl_aux AFFECT 
+  value=expression SEMI
+{
+  List.map (fun v ->
+  ((v, Kawa.typ_of_string typ), Some value)
+) vars 
 }
 ;
 
 var_decl_aux:
 | id=IDENT {id :: []}
 | id=IDENT COMA ids=var_decl_aux {id :: ids}
+;
 
 class_decl:
   CLASS class_name=IDENT parent=extend?
@@ -73,12 +85,17 @@ attribute_decl:
 ;
 
 method_def:
-  METHOD t=IDENT method_name=IDENT LPAR params=separated_list(COMA, param_decl) RPAR BEGIN 
+  METHOD ret=IDENT method_name=IDENT LPAR params=separated_list(COMA, param_decl) RPAR BEGIN 
   vars=list(var_decl)
   code=list(instruction)
   END
-  { { method_name; code; params; locals=List.flatten vars; return=Kawa.typ_of_string t;
-  }
+  { 
+    let okayyy = List.flatten vars in
+    let (oue, _) = List.split okayyy in
+    let truevals = List.filter (fun (_, opt) -> Option.is_some opt) okayyy in
+    let instrs = List.map (fun (x, value) -> Set(Var(fst x), Option.get value)) truevals in
+    let code = instrs @ code in
+    { method_name; code; params; locals=oue; return=Kawa.typ_of_string ret;}
   }
 ;
 
@@ -113,7 +130,10 @@ expression:
 | BOOL { Bool($1) }
 | NEW class_name=IDENT { New(class_name) }
 | NEW class_name=IDENT LPAR l=separated_list(COMA,expression) RPAR { NewCstr(class_name, l) }
-| e=expression POINT meth_name=IDENT LPAR l=separated_list(COMA, expression) RPAR { MethCall(e, meth_name, l) }
+
+// | e=expression POINT meth_name=IDENT LPAR l=separated_list(COMA, expression) RPAR { MethCall(e, meth_name, l) }
+| e=expression POINT meth_name=IDENT LPAR RPAR { MethCall(e, meth_name, []) }
+
 | name=IDENT { Get(Var(name)) }
 | THIS POINT field=IDENT { Get(Field(This, field)) }
 | e=expression POINT field=IDENT { Get(Field(e, field)) }

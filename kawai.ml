@@ -15,12 +15,14 @@ open Arg
 (* lis les parametres donnée à l'exe*)
 let usage_msg = "kawai <file1> [--show-source]"
 let show_source = ref false
+let show_source_debug = ref false
 let input_files = ref []
 
 let speclist =
   [
     ("--show_source", Arg.Set show_source, "Print read file");
     ("-s", Arg.Set show_source, "Print read file");
+    ("-d", Arg.Set show_source_debug, "debug read file");
   ]
 
 let anon_fun filename = input_files := filename :: !input_files
@@ -115,6 +117,28 @@ let lex_and_print_tokens c =
   with
   | End_of_file -> ()
 
+let lex_and_debug_tokens c =
+  let lb = Lexing.from_channel c in
+  let rec loop ligne indent =
+    let tok = Kawalexer.token lb in
+    let pos = lb.lex_curr_p.pos_lnum in
+
+    let new_indent =
+      match tok with
+      | BEGIN -> indent + 2
+      | END -> max 0 (indent - 2)
+      | _ -> indent
+    in
+    if pos <> ligne then Printf.printf "\n%s" (String.make new_indent ' ');
+    Printf.printf "%s " (Kawalexer.token_to_string_debug tok);
+    if tok <> EOF then loop pos new_indent
+  in
+  try
+    loop 1 0;
+    print_endline ""
+  with
+  | End_of_file -> ()
+
 let () =
   let exit code =
     if !input_files = [] then
@@ -138,6 +162,9 @@ let () =
     if !show_source then (
       Printf.printf "\027[2mSource code of %s :\027[0m\n" f;
       lex_and_print_tokens (open_in f));
+    if !show_source_debug then (
+      Printf.printf "\027[2mSource code of %s :\027[0m\n" f;
+      lex_and_debug_tokens (open_in f));
 
     (* (Printf.printf "\027[2mSource code of %s :\027[0m\n" f; print_source f); *)
     try
