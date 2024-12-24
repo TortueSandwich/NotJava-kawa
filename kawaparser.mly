@@ -31,27 +31,29 @@
 %%
 
 program:
-  list(global_decl) 
+  list(var_decl) 
   list(class_decl) 
   MAIN BEGIN 
     list(instruction) 
   END EOF
-  { { globals = List.flatten $1; classes = $2; main = $5 } }
-;
-
-
-global_decl:
-| VAR typ=IDENT 
-vars=glob_de_aux
-SEMI { 
-  let x = List.map (fun v -> (v,Kawa.typ_of_string typ)) vars in
-  x
+  { 
+    let oue = List.flatten $1 in
+    let (vars, values) = List.split oue in
+    { globals = vars; classes = $2; main = $5 } 
   }
 ;
 
-glob_de_aux:
+
+var_decl:
+| VAR typ=IDENT vars=var_decl_aux SEMI { List.map (fun v -> (v, Kawa.typ_of_string typ)) vars }
+| VAR typ=IDENT vars=var_decl_aux AFFECT value=expression SEMI {
+  List.map (fun v -> (v, Kawa.typ_of_string typ)) vars 
+}
+;
+
+var_decl_aux:
 | id=IDENT {id :: []}
-| id=IDENT COMA ids=glob_de_aux {id :: ids}
+| id=IDENT COMA ids=var_decl_aux {id :: ids}
 
 class_decl:
   CLASS class_name=IDENT parent=extend?
@@ -72,9 +74,10 @@ attribute_decl:
 
 method_def:
   METHOD t=IDENT method_name=IDENT LPAR params=separated_list(COMA, param_decl) RPAR BEGIN 
+  vars=list(var_decl)
   code=list(instruction)
   END
-  { { method_name; code; params; locals=[]; return=Kawa.typ_of_string t;
+  { { method_name; code; params; locals=List.flatten vars; return=Kawa.typ_of_string t;
   }
   }
 ;

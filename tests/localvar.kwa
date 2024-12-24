@@ -9,19 +9,15 @@ class point {
     this.y = b;
   }
 
-  method int test(bool b) {
-    // c'est con ce n'est pas un language fonctionnel
-    //if (b) {
-    //    return this.x;
-    //} else {
-    //    return this.y;
-    //}
+  method int test() {
+    var int a;
+    a = this.x+this.y;
+    return a*a;
   }
 }
 
 main {
-  // p = new point(2, 1);
-  // print(p.test(true));
-  // print(p.test(false));
-  // affiche 2 puis 1
+  p = new point(4,5);
+  print(p.test());
+  // affiche 81
 }
