@@ -1,0 +1,27 @@
+var point p;
+
+class point {
+  attribute int x;
+  attribute int y;
+
+  method void constructor(int a, int b) {
+    this.x = a;
+    this.y = b;
+  }
+
+  method int test(bool b) {
+    // c'est con ce n'est pas un language fonctionnel
+    //if (b) {
+    //    return this.x;
+    //} else {
+    //    return this.y;
+    //}
+  }
+}
+
+main {
+  // p = new point(2, 1);
+  // print(p.test(true));
+  // print(p.test(false));
+  // affiche 2 puis 1
+}

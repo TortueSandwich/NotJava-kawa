@@ -36,13 +36,22 @@ program:
   MAIN BEGIN 
     list(instruction) 
   END EOF
-  { { globals = $1; classes = $2; main = $5 } }
+  { { globals = List.flatten $1; classes = $2; main = $5 } }
 ;
 
 
 global_decl:
-| VAR IDENT IDENT SEMI { ($3, Kawa.typ_of_string $2) }
+| VAR typ=IDENT 
+vars=glob_de_aux
+SEMI { 
+  let x = List.map (fun v -> (v,Kawa.typ_of_string typ)) vars in
+  x
+  }
 ;
+
+glob_de_aux:
+| id=IDENT {id :: []}
+| id=IDENT COMA ids=glob_de_aux {id :: ids}
 
 class_decl:
   CLASS class_name=IDENT parent=extend?

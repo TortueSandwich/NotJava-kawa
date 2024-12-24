@@ -155,7 +155,7 @@ let typecheck_prog p =
         check_expr e tenv |> check_subtype (type_mem_access m tenv)
     | Return e ->
         let typ_e = check_expr e tenv in
-        check_eq_type typ_e ret
+        check_subtype typ_e ret
     | Expr e -> ignore (check_expr e tenv)
   and check_seq s ret tenv = List.iter (fun i -> check_instr i ret tenv) s in
   check_seq p.main TVoid tenv;
@@ -163,6 +163,7 @@ let typecheck_prog p =
   List.iter (fun c -> 
     let tenv = add_env c.attributes Env.empty in
     let tenv = add_env [("this", TClass c.class_name)] tenv in
+    (* typecheck les methodes*)
     (List.iter (fun m ->
       let tenv = add_env m.locals tenv in
       let tenv = add_env m.params tenv in
