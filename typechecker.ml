@@ -52,7 +52,9 @@ let objname_of_typ = function TClass clsname -> clsname | _ -> assert false
 
 let typecheck_prog p =
   let tenv = Hashtbl.create 16 in
+  let type_reel_env = Hashtbl.create 16 in
   add_env p.globals tenv ;
+  add_env p.globals type_reel_env ; 
   let find_class_def class_name = find_class_def class_name p.classes in
   let check_subtype objective curr = check_subtype objective curr find_class_def in
 
@@ -69,8 +71,9 @@ let typecheck_prog p =
         | Not ->
             check_eq_type TBool type_e;
             TBool
-        | TypeCast (newType) -> check_subtype newType type_e;
-            type_e)
+        | TypeCast (newType) ->let type_reel_e = check_expr e type_reel_env in 
+            if type_e = type_reel_e then  check_subtype newType type_e else check_subtype newType type_reel_e;
+            newType)
 
     | Binop (u, e1, e2) -> (
         let type_e1 = check_expr e1 tenv in
@@ -157,7 +160,12 @@ let typecheck_prog p =
     | Set (m, e) ->
       let type_e = check_expr e tenv in 
       check_subtype (type_mem_access m tenv) type_e; 
-      (match m with Var name -> (Hashtbl.add tenv name type_e ) | _-> ())
+      (match m with 
+      Var name -> (match e with       (*Si il y a New dans rvalue , on garde en mémoire le nouveau type réel introduit*)
+                New _ | NewCstr _-> Hashtbl.replace type_reel_env name type_e (*type_e est le type réel*)
+                | Unop (uop , e) -> (match uop with TypeCast(_) -> let type_reel_e = check_expr e type_reel_env in Hashtbl.replace type_reel_env name type_reel_e| _ -> ())
+                | _ -> ())
+      | _ -> ())
     | Return e ->
         let typ_e = check_expr e tenv in
         check_eq_type typ_e ret
