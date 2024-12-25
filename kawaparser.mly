@@ -139,6 +139,11 @@ expression:
 | e=expression POINT field=IDENT { Get(Field(e, field)) }
 
 // todo uop
+
+
+
+| LPAR s=IDENT RPAR expression { Unop(TypeCast(typ_of_string(s)),$4)}
+
 | LPAR expression RPAR { $2 }
 | expression EQ expression { Binop(Eq, $1, $3) }
 | expression NEQ expression { Binop(Neq, $1, $3) }
