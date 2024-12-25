@@ -12,7 +12,14 @@ let typ_of_string = function
   | "void" -> TVoid
   | classname -> TClass classname
 
-type unop = Opp | Not
+let typ_to_string = function
+  | TVoid -> "void"
+  | TInt -> "int"
+  | TBool -> "bool"
+  | TClass c -> c
+
+
+type unop = Opp | Not | TypeCast of typ
 
 type binop =
   | Add
@@ -103,7 +110,7 @@ type program = {
   main : seq;
 }
 
-let string_of_unop unop = match unop with Opp -> "Opp" | Not -> "Not"
+let string_of_unop unop = match unop with Opp -> "Opp" | Not -> "Not" | TypeCast (newType) -> "TypeCast("^( typ_to_string newType) ^ ")"
 
 let string_of_biop (biop : binop) : string =
   match biop with
@@ -142,8 +149,3 @@ and string_of_meme = function
       (string_of_expr obj) ^ "." ^ field_name
     )
 
-let typ_to_string = function
-  | TVoid -> "void"
-  | TInt -> "int"
-  | TBool -> "bool"
-  | TClass c -> c

@@ -80,7 +80,8 @@ let exec_prog (p : program) : unit =
     and evalb (e : expr) = match eval e with VBool b -> b | _ -> assert false
     and evalo (e : expr) = match eval e with VObj o -> o | _ -> assert false
     and evalunop unop (e : expr) =
-      match unop with Opp -> VInt (-evali e) | Not -> VBool (not (evalb e))
+      match unop with Opp -> VInt (-evali e) | Not -> VBool (not (evalb e)) | TypeCast (newType) -> 
+                                                                              match newType with TClass (newClassName) -> match eval e with VObj obj -> VObj ({ cls=newClassName; fields=obj.fields})
     and evalbinop binop (e1 : expr) (e2 : expr) =
       let int_op f = VInt (f (evali e1) (evali e2)) in
       let bool_op f = VBool (f (evalb e1) (evalb e2)) in
