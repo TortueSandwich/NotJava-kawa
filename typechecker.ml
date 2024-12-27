@@ -12,9 +12,36 @@ let type_error ?(context="") ty_actual ty_expected =
        (typ_to_string ty_expected)
        (typ_to_string ty_actual))
 
-type tenv = (string, typ) Hashtbl.t
+module Env = Map.Make(String)
+type tenv = typ Env.t
 
-let add_env l tenv = List.iter (fun (x, t) -> Hashtbl.add tenv x t) l
+(*Wrapper definition*)
+type env =
+  | Map of tenv
+  | Hashtbl of (string, typ) Hashtbl.t
+
+let find_in_env container key =
+    match container with
+    | Map map ->Env.find key map
+    | Hashtbl tbl -> Hashtbl.find tbl key
+let find_in_env_opt container key =
+  match container with
+  | Map map ->
+      (try Some (Env.find key map) with Not_found -> None)
+  | Hashtbl tbl ->
+      (try Some (Hashtbl.find tbl key) with Not_found -> None)
+
+let replace_in_env container key value = 
+  match container with
+    | Map map -> failwith"Trying to replace in Map"
+    | Hashtbl tbl -> Hashtbl.replace tbl key value
+
+let add_env l tenv = List.fold_left (fun env (x, t) -> Env.add x t env) tenv l
+let add_env_hash l tenv = List.iter (fun (x, t) -> Hashtbl.add tenv x t) l
+
+(*end of wrapper*)
+
+
 let type_of_unop = function Opp -> TInt | Not -> TBool 
   | TypeCast (newType) -> newType
 
@@ -51,14 +78,17 @@ let find_method_def meth_name methods =
 let objname_of_typ = function TClass clsname -> clsname | _ -> assert false
 
 let typecheck_prog p =
-  let tenv = Hashtbl.create 16 in
+  let tenv = Env.empty in
   let type_reel_env = Hashtbl.create 16 in
-  add_env p.globals tenv ;
-  add_env p.globals type_reel_env ; 
+  let tenv = add_env p.globals tenv in
+  add_env_hash p.globals type_reel_env ; 
+
+  let tenv = Map(tenv) in
+  let type_reel_env = Hashtbl(type_reel_env) in
   let find_class_def class_name = find_class_def class_name p.classes in
   let check_subtype objective curr = check_subtype objective curr find_class_def in
 
-  let rec check_expr e tenv : typ =
+  let rec check_expr e (tenv: env) : typ =
     match e with
     | Int _ -> TInt
     | Bool _ -> TBool
@@ -71,7 +101,7 @@ let typecheck_prog p =
         | Not ->
             check_eq_type TBool type_e;
             TBool
-        | TypeCast (newType) ->let type_reel_e = check_expr e type_reel_env in 
+        | TypeCast (newType) -> let type_reel_e = check_expr e type_reel_env in 
             if type_e = type_reel_e then  check_subtype newType type_e else check_subtype newType type_reel_e;
             newType)
 
@@ -96,7 +126,7 @@ let typecheck_prog p =
     | This -> begin 
         try 
         (* let c = List.find (fun cls -> cls.class_name = "this") tenv *)
-        let c = Hashtbl.find tenv "this" 
+        let c = find_in_env tenv "this" 
         in 
         (* TClass (c.class_name) *)
         c
@@ -126,7 +156,7 @@ let typecheck_prog p =
   and type_mem_access m tenv =
     match m with
     | Var name -> (
-        match Hashtbl.find_opt tenv name with
+        match find_in_env_opt tenv name with
         | Some typ -> typ
         | None -> error ("Undeclared variable: " ^ name))
     | Field (obj, field_name) -> (
@@ -162,8 +192,11 @@ let typecheck_prog p =
       check_subtype (type_mem_access m tenv) type_e; 
       (match m with 
       Var name -> (match e with       (*Si il y a New dans rvalue , on garde en mémoire le nouveau type réel introduit*)
-                New _ | NewCstr _-> Hashtbl.replace type_reel_env name type_e (*type_e est le type réel*)
-                | Unop (uop , e) -> (match uop with TypeCast(_) -> let type_reel_e = check_expr e type_reel_env in Hashtbl.replace type_reel_env name type_reel_e| _ -> ())
+
+                New _ | NewCstr _-> replace_in_env type_reel_env name type_e (*type_e est le type réel*)
+                | Unop (uop , e) -> (match uop with TypeCast(_) -> let type_reel_e = check_expr e type_reel_env in 
+                                      replace_in_env type_reel_env name type_reel_e
+                                      | _ -> ())
                 | _ -> ())
       | _ -> ())
     | Return e ->
@@ -174,12 +207,13 @@ let typecheck_prog p =
   check_seq p.main TVoid tenv;
 
   List.iter (fun c -> 
-    let tenv = Hashtbl.create 16 in
-    add_env c.attributes tenv ;
-    add_env [("this", TClass c.class_name)] tenv ;
+    let tenv = Env.empty in
+    let tenv = add_env c.attributes tenv in
+    let tenv = add_env [("this", TClass c.class_name)] tenv in
     (List.iter (fun m ->
-      add_env m.locals tenv ;
-      add_env m.params tenv ;
+      let tenv = add_env m.locals tenv in
+      let tenv = add_env m.params tenv in
+      let tenv = Map (tenv) in
       check_seq (m.code) m.return tenv) 
       c.methods)) 
     p.classes
