@@ -22,6 +22,9 @@
         "false",    BOOL(false);
         "this",     THIS;
         "return",   RETURN;
+        "int",      TINT;
+        "bool",     TBOOL;
+        "void",     TVOID;
       ] ;
     fun s ->
       try  Hashtbl.find h s
@@ -31,6 +34,7 @@
   let jaune = "\027[33m"
   let vert = "\027[92m"
   let orange = "\027[38:5:208m"
+  let bleu = "\027[94m"
 
   let token_to_string s = 
     let t = match s with
@@ -52,6 +56,7 @@
     | DIV -> vert^"/"
     | EQ -> vert^"=="
     | NEQ -> vert^"!="
+    | EXCLAMATION -> vert^"!"
     | MOD -> vert^"%"
     | AFFECT -> violet^"="
     | POINT -> "\027[4m."
@@ -74,6 +79,10 @@
     | ATTRIBUTE -> violet^"attribute"
     | METHOD -> violet^"method"
     | THIS -> orange ^"this"
+
+    | TINT -> bleu^"int"
+    | TBOOL -> bleu^"bool"
+    | TVOID -> bleu^"void"
     
     | _ -> "UNKNOWN" 
     in t ^"\027[0m"
@@ -162,6 +171,7 @@ rule token = parse
   | ">=" { GEQ }
   | "&&" { AND }
   | "||" { OR }
+  | "!" { EXCLAMATION }
 
   | '.' { POINT }
   | ',' { COMA }
