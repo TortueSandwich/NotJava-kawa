@@ -52,7 +52,7 @@ instruction:
 | IF LPAR e=expression RPAR BEGIN iif=list(instruction) END ELSE BEGIN ielse=list(instruction) END {If(e, iif, ielse)}
 | WHILE LPAR e=expression RPAR BEGIN i=list(instruction) END {While(e,i)}
 | RETURN e=expression SEMI {Return(e)}
-| e=expression SEMI {Expr(e)}
+| e=expression POINT s=IDENT LPAR l=separated_list(COMA,expression) RPAR SEMI {Expr(MethCall(e,s,l))}
 ;
 
 expression:
@@ -102,7 +102,7 @@ method_def:
   { method_name; code; params; locals; return;}}
 ;
 
-kawatype:
+%inline kawatype:
 | TINT {TInt}
 | TBOOL {TBool}
 | TVOID {TVoid}
@@ -112,7 +112,7 @@ kawatype:
 %inline unop:
 | MINUS {Opp}
 | EXCLAMATION {Not}
-// | LPAR t=kawatype RPAR { TypeCast(t) } 
+| LPAR t=kawatype RPAR { TypeCast(t) } 
 ;
 
 %inline binop:
