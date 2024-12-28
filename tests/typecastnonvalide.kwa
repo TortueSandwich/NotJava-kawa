@@ -1,0 +1,7 @@
+var int x;
+
+class myclass {}
+
+main {
+    (myclass) x = 3;
+}

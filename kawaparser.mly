@@ -48,11 +48,17 @@ program:
 
 instruction:
 | PRINT LPAR e=expression RPAR SEMI {Print(e)}
-| m=mem AFFECT e=expression SEMI {Set(m, e)}
+| m=lvalue AFFECT e=expression SEMI {Set(m, e)}
 | IF LPAR e=expression RPAR BEGIN iif=list(instruction) END ELSE BEGIN ielse=list(instruction) END {If(e, iif, ielse)}
 | WHILE LPAR e=expression RPAR BEGIN i=list(instruction) END {While(e,i)}
 | RETURN e=expression SEMI {Return(e)}
 | e=expression SEMI {Expr(e)}
+;
+
+
+lvalue:
+| s=IDENT {Var(s)}
+| e=lvalue POINT s=IDENT {Field(Get(e),s)}
 ;
 
 expression:
@@ -68,10 +74,27 @@ expression:
 | e=expression POINT s=IDENT LPAR l=separated_list(COMA,expression) RPAR {MethCall(e,s,l)}
 ;
 
+%inline unop:
+| MINUS {Opp}
+| EXCLAMATION {Not}
+| LPAR t=kawatype RPAR { TypeCast(t) } 
+;
+
 
 %inline mem:
 | s=IDENT {Var(s) }
 | e=expression POINT s=IDENT {Field(e,s)}
+;
+
+
+%inline kawatype:
+| TINT {TInt}
+| TBOOL {TBool}
+| TVOID {TVoid}
+| s=IDENT {TClass(s)}
+;
+
+
 
 class_def: 
 | CLASS class_name=IDENT parent=extends? BEGIN attributes=list(attr_decl) methods=list(method_def) END {
@@ -84,8 +107,7 @@ extends :
 ;
 
 var_decl:
-| VAR t=kawatype s=IDENT SEMI {(s, t) :: []}
-| VAR t=kawatype l=separated_list(COMA, IDENT) {List.map (fun x -> (x,t)) l}
+| VAR t=kawatype l=separated_nonempty_list(COMA, IDENT) SEMI {List.map (fun x -> (x,t)) l}
 ;
 
 attr_decl:
@@ -100,19 +122,6 @@ method_def:
 {
   let locals = List.flatten locals in
   { method_name; code; params; locals; return;}}
-;
-
-kawatype:
-| TINT {TInt}
-| TBOOL {TBool}
-| TVOID {TVoid}
-| s=IDENT {TClass(s)}
-;
-
-%inline unop:
-| MINUS {Opp}
-| EXCLAMATION {Not}
-// | LPAR t=kawatype RPAR { TypeCast(t) } 
 ;
 
 %inline binop:

@@ -84,7 +84,7 @@
     | TBOOL -> bleu^"bool"
     | TVOID -> bleu^"void"
     
-    | _ -> "UNKNOWN" 
+    (* | _ -> "UNKNOWN"  *)
     in t ^"\027[0m"
 
   let token_to_string_debug s = 
@@ -110,6 +110,7 @@
     | MOD -> "MOD"
     | AFFECT -> "AFFECT"
     | POINT -> "POINT"
+    | EXCLAMATION -> "EXCLAMATION"
 
     | LT -> "LT"
     | LEQ -> "LEQ"
@@ -129,8 +130,12 @@
     | ATTRIBUTE -> "ATTRIBUTE"
     | METHOD -> "METHOD"
     | THIS -> "THIS"
+
+    | TINT -> bleu^"TINT"
+    | TBOOL -> bleu^"TBOOL"
+    | TVOID -> bleu^"TVOID"
     
-    | _ -> "UNKNOWN"
+    (* | _ -> "UNKNOWN" *)
     in t 
     
 }

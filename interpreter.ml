@@ -42,6 +42,12 @@ let set_in_env env_stack key value =
 let exec_prog (p : program) : unit =
   let env_stack = [ Hashtbl.create 16 ] in
   List.iter (fun (x, _) -> Hashtbl.add (List.hd env_stack) x Null) p.globals;
+  let findclass class_name = List.find (fun x -> x.class_name = class_name) p.classes in
+  let alloc class_name = 
+    let c = findclass class_name in
+    let vartable = List.map (fun x -> (fst x,Null)) c.attributes |> List.to_seq |> Hashtbl.of_seq in
+    { cls = class_name; fields = vartable }
+  in
 
   let rec eval_call f this args =
     let defclass = List.find (fun cls -> cls.class_name = this.cls) p.classes in
@@ -50,25 +56,18 @@ let exec_prog (p : program) : unit =
       | Some m -> m
       | None -> (
           match defclass.parent with
-          | Some parent ->
-              let defclass =
-                List.find (fun cls -> cls.class_name = parent) p.classes
-              in
-              findmethod defclass
+          | Some parent -> List.find (fun cls -> cls.class_name = parent) p.classes |> findmethod
           | None ->
               raise
                 (Error ("Method " ^ f ^ " not found in " ^ defclass.class_name))
           )
     in
     let method_def = findmethod defclass in
-
     let method_env = Hashtbl.create 16 in
     Hashtbl.add method_env "this" (VObj this);
-
     List.iter2
       (fun (param_name, _) arg -> Hashtbl.add method_env param_name arg)
       method_def.params args;
-
     try
       exec_seq method_def.code [ method_env ];
       Null
@@ -80,8 +79,15 @@ let exec_prog (p : program) : unit =
     and evalb (e : expr) = match eval e with VBool b -> b | _ -> assert false
     and evalo (e : expr) = match eval e with VObj o -> o | _ -> assert false
     and evalunop unop (e : expr) =
-      match unop with Opp -> VInt (-evali e) | Not -> VBool (not (evalb e)) | TypeCast (newType) -> 
-                                                                              match newType with TClass (newClassName) -> match eval e with VObj obj -> VObj ({ cls=newClassName; fields=obj.fields})
+      match unop with 
+      | Opp -> VInt (-evali e) 
+      | Not -> VBool (not (evalb e)) 
+      | TypeCast (TClass (newClassName)) -> (
+        match eval e with 
+        | VObj obj -> VObj ({ cls=newClassName; fields=obj.fields})
+        | _ -> raise (Error("cannot cast a primitve type"))
+        ) 
+      | TypeCast (_) -> raise (Error("cannot cast into a primitve type"))
     and evalbinop binop (e1 : expr) (e2 : expr) =
       let int_op f = VInt (f (evali e1) (evali e2)) in
       let bool_op f = VBool (f (evalb e1) (evalb e2)) in
@@ -94,32 +100,14 @@ let exec_prog (p : program) : unit =
           if e2_val <> 0 then VInt (evali e1 / e2_val)
           else failwith "Division by 0"
       | Rem -> int_op (mod)
-      | Lt ->
-          let v1 = evali e1 in
-          let v2 = evali e2 in
-          VBool (v1 < v2)
-      | Le ->
-          let v1 = evali e1 in
-          let v2 = evali e2 in
-          VBool (v1 <= v2)
-      | Gt ->
-          let v1 = evali e1 in
-          let v2 = evali e2 in
-          VBool (v1 > v2)
-      | Ge ->
-          let v1 = evali e1 in
-          let v2 = evali e2 in
-          VBool (v1 >= v2)
-      | Eq -> VBool (eval e1 = eval e2)
-      | Neq -> VBool (eval e1 <> eval e2)
-      | And ->
-          let v1 = evalb e1 in
-          let v2 = evalb e2 in
-          VBool (v1 && v2)
-      | Or ->
-          let v1 = evalb e1 in
-          let v2 = evalb e2 in
-          VBool (v1 || v2)
+      | Lt -> bool_op ( < )
+      | Le -> bool_op ( <= )
+      | Gt -> bool_op ( > )
+      | Ge -> bool_op ( >= )
+      | Eq -> bool_op ( = )
+      | Neq -> bool_op ( <> )
+      | And -> bool_op ( && )
+      | Or -> bool_op ( || )
     and eval (e : expr) : value =
       match e with
       | Int n -> VInt n
@@ -133,28 +121,12 @@ let exec_prog (p : program) : unit =
               let o = evalo obj in
               Hashtbl.find o.fields field_name)
       | This -> find_in_env env_stack "this"
-      | New class_name ->
-          let defclass =
-            List.find (fun x -> x.class_name = class_name) p.classes
-          in
-          let vartable = Hashtbl.create (List.length defclass.attributes) in
-          List.iter
-            (fun (varname, _) -> Hashtbl.add vartable varname Null)
-            defclass.attributes;
-          let classetqt : obj = { cls = class_name; fields = vartable } in
-          VObj classetqt
+      | New class_name -> VObj(alloc class_name)
       | NewCstr (class_name, args) ->
-          let defclass =
-            List.find (fun x -> x.class_name = class_name) p.classes
-          in
-          let vartable = Hashtbl.create (List.length defclass.attributes) in
-          List.iter
-            (fun (varname, _) -> Hashtbl.add vartable varname Null)
-            defclass.attributes;
-
-          let classetqt : obj = { cls = class_name; fields = vartable } in
-          eval_call "constructor" classetqt (List.map eval args);
-          VObj classetqt
+          let instance = alloc class_name in
+          let n = eval_call "constructor" instance (List.map eval args) in
+          if n <> Null then raise (Error("A constructor must not return anything")) (* already checked by compiler *)
+          else VObj instance
       | MethCall (obj, meth_name, args) ->
           eval_call meth_name (evalo obj) (List.map eval args)
       (* | _ -> failwith "case not implemented in eval" *)
