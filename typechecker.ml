@@ -52,15 +52,15 @@ let find_method_def meth_name methods =
 
 let objname_of_typ = function TClass clsname -> clsname | _ -> assert false
 
-let typecheck_prog p =
+let typecheck_prog (p:program) : unit =
   let tenv = Env.empty in
   let tenv = add_env p.globals tenv in
  
   let find_class_def class_name = find_class_def class_name p.classes in
   let check_subtype objective curr = check_subtype objective curr find_class_def in
 
-  let rec check_expr e (tenv: tenv) : typ =
-    match e with
+  let rec check_expr (e:expr) (tenv: tenv) : typ =
+    match e.expr with
     | Int _ -> TInt
     | Bool _ -> TBool
     | Unop (u, e) -> (

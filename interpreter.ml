@@ -132,7 +132,7 @@ let exec_prog (p : program) : unit =
           let v2 = evalb e2 in
           VBool (v1 || v2)
     and eval (e : expr) : value =
-      match e with
+      match e.expr with
       | Int n -> VInt n
       | Bool b -> VBool b
       | Unop (u, e) -> evalunop u e

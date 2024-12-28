@@ -47,25 +47,25 @@ program:
 ;
 
 instruction:
-| PRINT LPAR e=expression RPAR SEMI {Print(e)}
-| m=mem AFFECT e=expression SEMI {Set(m, e)}
-| IF LPAR e=expression RPAR BEGIN iif=list(instruction) END ELSE BEGIN ielse=list(instruction) END {If(e, iif, ielse)}
-| WHILE LPAR e=expression RPAR BEGIN i=list(instruction) END {While(e,i)}
+| PRINT LPAR e=expression RPAR SEMI { Print(e) }
+| m=mem AFFECT e=expression SEMI { Set(m, e) }
+| IF LPAR e=expression RPAR BEGIN iif=list(instruction) END ELSE BEGIN ielse=list(instruction) END { If(e, iif, ielse) }
+| WHILE LPAR e=expression RPAR BEGIN i=list(instruction) END { While(e,i) }
 | RETURN e=expression SEMI {Return(e)}
-| e=expression POINT s=IDENT LPAR l=separated_list(COMA,expression) RPAR SEMI {Expr(MethCall(e,s,l))}
+| e=expression POINT s=IDENT LPAR l=separated_list(COMA,expression) RPAR SEMI { Expr({annot = TVoid ; expr = MethCall(e,s,l)})}
 ;
 
 expression:
-| n=INT { Int(n) }
-| b=BOOL { Bool(b) }
-| t=THIS { This }
-| m=mem {Get(m)}
-| o=unop e=expression %prec UNARY_OP {Unop(o, e)}
-| e=expression o=binop f=expression {Binop(o,e,f)}
+| n=INT { {annot = TInt ; expr = Int(n) }}
+| b=BOOL { {annot = TBool ; expr = Bool(b) }}
+| t=THIS {{annot  =TVoid ; expr=This }}
+| m=mem {{annot = TVoid ; expr = Get(m)}}
+| o=unop e=expression %prec UNARY_OP {{annot = TVoid ; expr = Unop(o, e)}}
+| e=expression o=binop f=expression { {annot = TVoid ; expr = Binop(o,e,f)} }
 | LPAR e=expression RPAR { e }
-| NEW i=IDENT {New(i)}
-| NEW i=IDENT LPAR l=separated_list(COMA,expression) RPAR {NewCstr(i, l)}
-| e=expression POINT s=IDENT LPAR l=separated_list(COMA,expression) RPAR {MethCall(e,s,l)}
+| NEW i=IDENT {{annot = TClass(i) ; expr =  New(i)}}
+| NEW i=IDENT LPAR l=separated_list(COMA,expression) RPAR {{annot = TClass(i) ; expr = NewCstr(i, l)}}
+| e=expression POINT s=IDENT LPAR l=separated_list(COMA,expression) RPAR {{annot = TVoid ; expr = MethCall(e,s,l)}}
 ;
 
 

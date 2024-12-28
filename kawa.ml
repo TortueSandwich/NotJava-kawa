@@ -37,7 +37,8 @@ type binop =
   | Or
 
 (* Expressions *)
-type expr =
+type expr = {annot : typ ; expr : expr_}
+and expr_ = 
   (* Base arithmétique *)
   | Int of int
   | Bool of bool
@@ -130,7 +131,7 @@ let string_of_biop (biop : binop) : string =
 
 let rec string_of_expr (e : expr) : string =
   let fmt = Printf.sprintf in
-  match e with
+  match e.expr with
   | Int i -> fmt "Int(%d)" i
   | Bool b -> fmt "Bool(%b)" b
   | Unop (unop, expr) ->
