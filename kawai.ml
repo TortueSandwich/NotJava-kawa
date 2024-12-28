@@ -145,8 +145,8 @@ let () =
       flush stdout;
       let prog = Kawaparser.program Kawalexer.token lb in
       close_in c;
-      Typechecker.typecheck_prog prog;
-      Interpreter.exec_prog prog
+      let typed_prog = Typechecker.typecheck_prog prog in 
+      Interpreter.exec_prog typed_prog 
       
     with
     | Kawalexer.Error s ->
