@@ -8,7 +8,7 @@
 
 (executable
  (name kawai)
- (modules kawa kawalexer kawaparser kawai interpreter typechecker)
+ (modules kawa kawalexer kawaparser kawai interpreter typechecker visuast)
  (promote (until-clean))
  (flags ()))
 

@@ -17,11 +17,13 @@ let usage_msg = "kawai <file1> [--show-source]"
 let show_source = ref false
 let show_source_debug = ref false
 let input_files = ref []
+let generate_dot = ref false
 
 let speclist =
   [
     ("--show_source", Arg.Set show_source, "Print read file");
     ("-s", Arg.Set show_source, "Print read file");
+    ("-d", Arg.Set generate_dot, "Generate a graphviz visualisation of the AST")
     ("-d", Arg.Set show_source_debug, "debug read file");
   ]
 
@@ -172,8 +174,9 @@ let () =
       flush stdout;
       let prog = Kawaparser.program Kawalexer.token lb in
       close_in c;
-      Typechecker.typecheck_prog prog;
-      Interpreter.exec_prog prog
+      let typed_prog = Typechecker.typecheck_prog prog in 
+      if !generate_dot then Visuast.main typed_prog;
+      Interpreter.exec_prog typed_prog 
       
     with
     | Kawalexer.Error s ->

@@ -1,12 +1,20 @@
 open Kawa
+open Typechecker  (*Pour importer check_subtype*)
 
 type value = VInt of int | VBool of bool | VObj of obj | Null
 and obj = { cls : string; fields : (string, value) Hashtbl.t }
 
+
+let typ_of_value = function
+| VInt (_) -> TInt
+| VBool (_) -> TBool
+| VObj (obj)-> TClass (obj.cls)
+| Null -> TVoid 
+
 exception Error of string
 exception Return of value
 
-let rec string_of_value = function
+let string_of_value = function
   | VInt i -> string_of_int i
   | VBool _ -> "BOOL"
   | VObj _ -> "OBJ"
@@ -40,6 +48,8 @@ let set_in_env env_stack key value =
   | env :: _ -> Hashtbl.replace env key value (* print_hashtable env; *)
 
 let exec_prog (p : program) : unit =
+  let find_class_def class_name = find_class_def class_name p.classes in
+  let check_subtype objective curr = check_subtype objective curr find_class_def in
   let env_stack = [ Hashtbl.create 16 ] in
   List.iter (fun (x, _) -> Hashtbl.add (List.hd env_stack) x Null) p.globals;
   let findclass class_name = List.find (fun x -> x.class_name = class_name) p.classes in
@@ -79,15 +89,9 @@ let exec_prog (p : program) : unit =
     and evalb (e : expr) = match eval e with VBool b -> b | _ -> assert false
     and evalo (e : expr) = match eval e with VObj o -> o | _ -> assert false
     and evalunop unop (e : expr) =
-      match unop with 
-      | Opp -> VInt (-evali e) 
-      | Not -> VBool (not (evalb e)) 
-      | TypeCast (TClass (newClassName)) -> (
-        match eval e with 
-        | VObj obj -> VObj ({ cls=newClassName; fields=obj.fields})
-        | _ -> raise (Error("cannot cast a primitve type"))
-        ) 
-      | TypeCast (_) -> raise (Error("cannot cast into a primitve type"))
+      match unop with Opp -> VInt (-evali e) | Not -> VBool (not (evalb e)) | TypeCast (newType) -> (let v_e = eval e in
+                                                                              check_subtype newType (typ_of_value v_e);
+                                                                              v_e)
     and evalbinop binop (e1 : expr) (e2 : expr) =
       let int_op f = VInt (f (evali e1) (evali e2)) in
       let bool_op f = VBool (f (evalb e1) (evalb e2)) in
@@ -109,7 +113,7 @@ let exec_prog (p : program) : unit =
       | And -> bool_op ( && )
       | Or -> bool_op ( || )
     and eval (e : expr) : value =
-      match e with
+      match e.expr with
       | Int n -> VInt n
       | Bool b -> VBool b
       | Unop (u, e) -> evalunop u e

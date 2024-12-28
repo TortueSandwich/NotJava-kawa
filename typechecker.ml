@@ -12,9 +12,11 @@ let type_error ?(context="") ty_actual ty_expected =
        (typ_to_string ty_expected)
        (typ_to_string ty_actual))
 
-type tenv = (string, typ) Hashtbl.t
+module Env = Map.Make(String)
+type tenv = typ Env.t
 
-let add_env l tenv = List.iter (fun (x, t) -> Hashtbl.add tenv x t) l
+let add_env l tenv = List.fold_left (fun env (x, t) -> Env.add x t env) tenv l
+
 let type_of_unop = function Opp -> TInt | Not -> TBool 
   | TypeCast (newType) -> newType
 
@@ -50,87 +52,89 @@ let find_method_def meth_name methods =
 
 let objname_of_typ = function TClass clsname -> clsname | _ -> assert false
 
-let typecheck_prog p =
-  let tenv = Hashtbl.create 16 in
-  let type_reel_env = Hashtbl.create 16 in
-  add_env p.globals tenv ;
-  add_env p.globals type_reel_env ; 
+let typecheck_prog (p:program) : program =
+  let tenv = Env.empty in
+  let tenv = add_env p.globals tenv in
+ 
   let find_class_def class_name = find_class_def class_name p.classes in
   let check_subtype objective curr = check_subtype objective curr find_class_def in
 
-  let rec check_expr e tenv : typ =
-    match e with
-    | Int _ -> TInt
-    | Bool _ -> TBool
+  let rec check_expr (e:expr) (tenv: tenv) : expr =
+    match e.expr with
+    | Int _ -> e
+    | Bool _ -> e
     | Unop (u, e) -> (
-        let type_e = check_expr e tenv in
+        let typed_e = check_expr e tenv in
         match u with
         | Opp ->
-            check_eq_type TInt type_e;
-            TInt
+            check_eq_type TInt typed_e.annot;
+            e
         | Not ->
-            check_eq_type TBool type_e;
-            TBool
-        | TypeCast (newType) ->let type_reel_e = check_expr e type_reel_env in 
-            if type_e = type_reel_e then  check_subtype newType type_e else check_subtype newType type_reel_e;
-            newType)
+            check_eq_type TBool typed_e.annot;
+            e
+        | TypeCast (newType) -> let typed_e = check_expr e tenv in 
+            (try 
+              check_subtype newType typed_e.annot ; {annot = newType ; expr = typed_e.expr}
+            with
+            | _ ->  check_subtype typed_e.annot newType ;{annot = newType ; expr = typed_e.expr})
+            )
 
     | Binop (u, e1, e2) -> (
-        let type_e1 = check_expr e1 tenv in
-        let type_e2 = check_expr e2 tenv in
+        let typed_e1 = check_expr e1 tenv in
+        let typed_e2 = check_expr e2 tenv in
         match u with
-        | Eq -> check_eq_type type_e1 type_e2; TBool
+        | Eq -> check_eq_type typed_e1.annot typed_e2.annot; {annot = TBool ; expr = e.expr}
         | Lt | Le | Gt | Ge | Neq ->
-            check_eq_type TInt type_e1;
-            check_eq_type TInt type_e2;
-            TBool
+            check_eq_type TInt typed_e1.annot;
+            check_eq_type TInt typed_e2.annot;
+            {annot = TBool ; expr = e.expr}
         | Add | Sub | Mul | Div | Rem ->
-            check_eq_type TInt type_e1;
-            check_eq_type TInt type_e2;
-            TInt
+            check_eq_type TInt typed_e1.annot;
+            check_eq_type TInt typed_e2.annot;
+            {annot = TInt ; expr = e.expr}
         | And | Or ->
-            check_eq_type TBool type_e1;
-            check_eq_type TBool type_e2;
-            TBool)
-    | Get m -> type_mem_access m tenv
+            check_eq_type TBool typed_e1.annot;
+            check_eq_type TBool typed_e2.annot;
+            {annot = TBool ; expr = e.expr})
+    | Get m -> {annot =  type_mem_access m tenv ; expr = e.expr}
     | This -> begin 
         try 
         (* let c = List.find (fun cls -> cls.class_name = "this") tenv *)
-        let c = Hashtbl.find tenv "this" 
+        let c = Env.find "this" tenv 
         in 
         (* TClass (c.class_name) *)
-        c
+        {annot = c ; expr = e.expr}
         with Not_found -> error ("Class not found: " ^ "this")
     end
 
     | New class_name -> 
       (* todo check si la classe existe *)
-      TClass class_name
+      {annot = TClass class_name ; expr = e.expr}
     | NewCstr (class_name, args) ->
         let defclass = find_class_def class_name in
         let constructor = find_method_def "constructor" defclass.methods in
         let param_types = List.map snd constructor.params in
-        let arg_types = List.map (fun arg -> check_expr arg tenv) args in
+        let arg_types = List.map (fun arg -> (check_expr arg tenv).annot) args in
         List.iter2 check_subtype param_types arg_types;
-        TClass class_name
+        {annot = TClass class_name ; expr = e.expr}
 
     | MethCall (obj, meth_name, args) ->
-        let typcls = objname_of_typ (check_expr obj tenv) in
+        let typcls = objname_of_typ ((check_expr obj tenv).annot) in
         let defclass = find_class_def typcls in
         let methodeu = find_method_def meth_name defclass.methods in
         let param_types = List.map snd methodeu.params in
-        let arg_types = List.map (fun arg -> check_expr arg tenv) args in
+        let arg_types = List.map (fun arg -> (check_expr arg tenv).annot) args in
         List.iter2 check_subtype param_types arg_types;
-        methodeu.return
+        {annot = methodeu.return ; expr = e.expr}
 
-  and type_mem_access m tenv =
+  and type_mem_access m tenv : typ =
     match m with
     | Var name -> (
-        match Hashtbl.find_opt tenv name with
+        match Env.find_opt name tenv with
         | Some typ -> typ
         | None -> error ("Undeclared variable: " ^ name))
     | Field (obj, field_name) -> (
-        let cls_name = objname_of_typ (check_expr obj tenv) in
+        let cls_name = objname_of_typ ((check_expr obj tenv).annot) in
         let class_def = find_class_def cls_name in
         let rec find_familly c = 
           try 
@@ -146,42 +150,51 @@ let typecheck_prog p =
         )
         
   
-  and check_instr i ret tenv =
+  and check_instr i ret tenv : instr=
     match i with
     | Print e ->
-        check_expr e tenv |> check_eq_type TInt
-    | If (cond, ifseq, elseseq) ->
-        check_expr cond tenv |> check_eq_type TBool;
-        check_seq ifseq TVoid tenv;
-        check_seq elseseq TVoid tenv
+        let typed_e = check_expr e tenv in 
+        typed_e.annot |> check_eq_type TInt; Print(typed_e) 
+    | If (cond, ifseq, elseseq) -> (
+        let typed_cond = check_expr cond tenv in
+        typed_cond.annot |> check_eq_type TBool;
+        If(typed_cond, check_seq ifseq TVoid tenv, check_seq elseseq TVoid tenv))
     | While (cond, iseq) ->
-        check_expr cond tenv |> check_eq_type TBool;
-        check_seq iseq TVoid tenv
-    | Set (m, e) ->
-      let type_e = check_expr e tenv in 
-      check_subtype (type_mem_access m tenv) type_e; 
-      (match m with 
-      Var name -> (match e with       (*Si il y a New dans rvalue , on garde en mémoire le nouveau type réel introduit*)
-                New _ | NewCstr _-> Hashtbl.replace type_reel_env name type_e (*type_e est le type réel*)
-                | Unop (uop , e) -> (match uop with TypeCast(_) -> let type_reel_e = check_expr e type_reel_env in Hashtbl.replace type_reel_env name type_reel_e| _ -> ())
-                | _ -> ())
-      | _ -> ())
+        let typed_cond = check_expr cond tenv in
+        typed_cond.annot |> check_eq_type TBool;
+        While(typed_cond , check_seq iseq TVoid tenv )
+    | Set (m, e) -> let typed_e = check_expr e tenv in
+      typed_e.annot |> check_subtype (type_mem_access m tenv) ;  Set(m,typed_e)
     | Return e ->
-        let typ_e = check_expr e tenv in
-        check_subtype typ_e ret
-    | Expr e -> ignore (check_expr e tenv)
-  and check_seq s ret tenv = List.iter (fun i -> check_instr i ret tenv) s in
-  check_seq p.main TVoid tenv;
+        let typed_e = check_expr e tenv in
+        check_eq_type typed_e.annot ret;
+        Return typed_e
+    | Expr e -> let typed_e = check_expr e tenv in
+                  check_eq_type typed_e.annot TVoid;
+                  Expr e
+  and check_seq s ret tenv : seq = List.map (fun i -> check_instr i ret tenv) s in
+  let typed_seq = check_seq p.main TVoid tenv in 
 
-  List.iter (fun c -> 
-    let tenv = Hashtbl.create 16 in
-    add_env c.attributes tenv ;
-    add_env [("this", TClass c.class_name)] tenv ;
-    (List.iter (fun m ->
-      add_env m.locals tenv ;
-      add_env m.params tenv ;
-      check_seq (m.code) m.return tenv) 
-      c.methods)) 
-    p.classes
+  let typed_classes = 
+    List.map (
+    fun c -> 
+    let tenv = Env.empty in
+    let tenv = add_env c.attributes tenv in
+    let tenv = add_env [("this", TClass c.class_name)] tenv in
+    {
+      class_name = c.class_name;
+      attributes = c.attributes;
+      methods = 
+    (List.map (fun m ->
+      let tenv = add_env m.locals tenv in
+      let tenv = add_env m.params tenv in
+      {method_name = m.method_name ; code = check_seq (m.code) m.return tenv; params = m.params ; locals = m.locals ; return = m.return}) 
+      c.methods);
+
+      parent = c.parent
+    }) 
+    p.classes in
+
+  {classes = typed_classes ; globals = p.globals ; main = typed_seq}
 
   

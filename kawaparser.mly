@@ -62,12 +62,12 @@ lvalue:
 ;
 
 expression:
-| n=INT { Int(n) }
-| b=BOOL { Bool(b) }
-| t=THIS { This }
-| m=mem {Get(m)}
-| o=unop e=expression %prec UNARY_OP {Unop(o, e)}
-| e=expression o=binop f=expression {Binop(o,e,f)}
+| n=INT { {annot = TInt ; expr = Int(n) }}
+| b=BOOL { {annot = TBool ; expr = Bool(b) }}
+| t=THIS {{annot  =TVoid ; expr=This }}
+| m=mem {{annot = TVoid ; expr = Get(m)}}
+| o=unop e=expression %prec UNARY_OP {{annot = TVoid ; expr = Unop(o, e)}}
+| e=expression o=binop f=expression { {annot = TVoid ; expr = Binop(o,e,f)} }
 | LPAR e=expression RPAR { e }
 | NEW i=IDENT {New(i)}
 | NEW i=IDENT LPAR l=separated_list(COMA,expression) RPAR {NewCstr(i, l)}
@@ -124,6 +124,60 @@ method_def:
   { method_name; code; params; locals; return;}}
 ;
 
+param_decl : 
+  t=IDENT name=IDENT {
+    (name, Kawa.typ_of_string t)
+  }
+;
+
+kawatype:
+| TINT {TInt}
+| TBOOL {TBool}
+| TVOID {TVoid}
+| s=IDENT {TClass(s)}
+;
+
+%inline unop:
+| MINUS {Opp}
+| EXCLAMATION {Not}
+// | LPAR t=kawatype RPAR { TypeCast(t) } 
+;
+
+<<<<<<<<< Temporary merge branch 1
+
+expression:
+| INT { Int($1) }
+| BOOL { Bool($1) }
+| NEW class_name=IDENT { New(class_name) }
+| NEW class_name=IDENT LPAR l=separated_list(COMA,expression) RPAR { NewCstr(class_name, l) }
+| e=expression POINT meth_name=IDENT LPAR l=separated_list(COMA, expression) RPAR { MethCall(e, meth_name, l) }
+| name=IDENT { Get(Var(name)) }
+| THIS POINT field=IDENT { Get(Field(This, field)) }
+| e=expression POINT field=IDENT { Get(Field(e, field)) }
+
+// todo uop
+
+
+
+| LPAR s=IDENT RPAR expression { Unop(TypeCast(typ_of_string(s)),$4)}
+
+| LPAR expression RPAR { $2 }
+| expression EQ expression { Binop(Eq, $1, $3) }
+| expression NEQ expression { Binop(Neq, $1, $3) }
+
+| expression LT expression { Binop(Lt, $1, $3) }
+| expression LEQ expression { Binop(Le, $1, $3) }
+| expression GT expression { Binop(Gt, $1, $3) }
+| expression GEQ expression { Binop(Ge, $1, $3) }
+| expression AND expression { Binop(And, $1, $3) }
+| expression OR expression { Binop(Or, $1, $3) }
+
+| expression PLUS expression { Binop(Add, $1, $3) }
+| expression MINUS expression { Binop(Sub, $1, $3) }
+| expression TIMES expression { Binop(Mul, $1, $3) }
+| expression DIV expression { Binop(Div, $1, $3) }
+| expression MOD expression { Binop(Rem, $1, $3) }
+=========
 %inline binop:
 | PLUS {Add}
 | MINUS {Sub}
