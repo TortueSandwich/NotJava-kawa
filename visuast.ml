@@ -10,7 +10,11 @@ let fresh_id =
     id
 
 (* Utilitaires pour la génération de nœuds et connexions *)
-let create_node id label = Printf.sprintf "  node%d [label=\"%s\"];" id label
+let create_node id label typ =
+  if typ = "" then 
+    Printf.sprintf "  node%d [label=\"%s\"];" id label
+  else 
+    Printf.sprintf "  node%d [label=<%s <BR/><FONT POINT-SIZE=\"8.0\">%s</FONT>>];" id label typ
 
 let create_connection ?(label = "") from_id to_id =
   if label = "" then Printf.sprintf "  node%d -> node%d;" from_id to_id
@@ -19,6 +23,9 @@ let create_connection ?(label = "") from_id to_id =
 
 (* Fonction générique pour une expression *)
 let rec expr_to_dot with_id (e : expr) =
+  let t = e.annot in
+  let ts = typ_to_string t in
+  let create_node with_id lab = create_node with_id lab ts in
   match e.expr with
   | Int i -> ([ create_node with_id (string_of_int i) ], [])
   | Bool b -> ([ create_node with_id (string_of_bool b) ], [])
@@ -104,13 +111,13 @@ and create_node_and_connections ?(ordered=false) with_id (childrens: expr list) 
 and mem_to_dot withid (m : Kawa.mem_access) =
   match m with
   | Var s ->
-      let currnode = create_node withid s in
+      let currnode = create_node withid s "" in
       ([ currnode ], [])
   | Field (e, s) ->
       let f_id = fresh_id () in
       let e_id = fresh_id () in
       let n, c = typed_expr_to_dot e_id e in
-      let nodes = [ create_node f_id s; create_node withid "." ] in
+      let nodes = [ create_node f_id s ""; create_node withid "." ""] in
       let connections =
         [ create_connection withid e_id; create_connection withid f_id ]
       in
@@ -118,6 +125,7 @@ and mem_to_dot withid (m : Kawa.mem_access) =
 
 (* Fonction pour une instruction *)
 and inst_to_dot with_id instr =
+  let create_node with_id lab = create_node with_id lab "" in 
   match instr with
   | Print e ->
       let currnode = create_node with_id "Print" in
@@ -198,7 +206,7 @@ and seq_to_dot seq withid =
 (* Fonction principale pour un programme *)
 let program_to_dot program output_file =
   let main_id = fresh_id () in
-  let main_node = create_node main_id "main" in
+  let main_node = create_node main_id "main"  "" in
   let nodes, connections = seq_to_dot program.main main_id in
 
   let dot_content =
@@ -222,7 +230,7 @@ let main (p : program) =
   else
     let result = Sys.command "dot -Tpng kawa_ast.dot -o kawa_ast.png" in
     if result <> 0 then
-      Printf.printf "Error: Failed to execute 'dot' command. Check your DOT file and Graphviz installation.\n"
+      Printf.printf "Error: Failed to execute 'dot' command. Check your DOT file and Graphviz installation.\n(or error in dot, try ``dot -Tpng kawa_ast.dot -o kawa_ast.png`` ?)\n"
     else
       Printf.printf "Image generated: kawa_ast.png\n"
   
