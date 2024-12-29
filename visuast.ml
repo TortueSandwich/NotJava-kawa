@@ -18,8 +18,8 @@ let create_connection ?(label = "") from_id to_id =
 
 
 (* Fonction générique pour une expression *)
-let rec expr_to_dot with_id (e : expr_) =
-  match e with
+let rec expr_to_dot with_id (e : expr) =
+  match e.expr with
   | Int i -> ([ create_node with_id (string_of_int i) ], [])
   | Bool b -> ([ create_node with_id (string_of_bool b) ], [])
   | Binop (opp, e1, e2) ->
@@ -64,11 +64,29 @@ let rec expr_to_dot with_id (e : expr_) =
       let (argnodes, argcon) = create_node_and_connections with_id l ~ordered:true in
       ( [ currnode; cls_node ] @ e_node @ argnodes,
         con @ e_con @ argnodes)
-  | _ ->
-      let node = create_node with_id "Non traité (expr)" in
-      ([ node ], [])
+  | Unop (opp,e) ->
+    let op_str = string_of_unop opp in
+    let currnode = create_node with_id op_str in
+    let (argnodes, argcon) = create_node_and_connections with_id [e] in
+    (* ( currnode :: argnodes,
+      argcon ) *)
+    begin match opp with
+    | TypeCast t ->  
+      let t_id = fresh_id () in 
+      let t_node = create_node t_id (typ_to_string t) in
+      let t_con = create_connection with_id t_id in 
+      ( currnode :: t_node :: argnodes,
+      t_con :: argcon )
+    | _ -> ( currnode :: argnodes, argcon )
 
-and typed_expr_to_dot with_id expr = expr_to_dot with_id expr.expr
+  end
+  
+  (* | _ ->
+      let node = create_node with_id "Non traité (expr)" in
+      ([ node ], []) *)
+  
+
+and typed_expr_to_dot with_id expr = expr_to_dot with_id expr
 
 and create_node_and_connections ?(ordered=false) with_id (childrens: expr list) =
   let l = List.map (fun x -> (fresh_id (), x)) childrens in
@@ -197,5 +215,14 @@ let program_to_dot program output_file =
 let main (p : program) =
   program_to_dot p "kawa_ast.dot";
   Printf.printf "AST DOT file generated: kawa_ast.dot\n";
-  let _ = Sys.command "dot -Tpng kawa_ast.dot -o kawa_ast.png" in
-  Printf.printf "Image generated: kawa_ast.png\n"
+
+  let check_dot = Sys.command "which dot > /dev/null 2>&1" in
+  if check_dot <> 0 then
+    Printf.printf "Error: The 'dot' command is not installed. Please install Graphviz.\n"
+  else
+    let result = Sys.command "dot -Tpng kawa_ast.dot -o kawa_ast.png" in
+    if result <> 0 then
+      Printf.printf "Error: Failed to execute 'dot' command. Check your DOT file and Graphviz installation.\n"
+    else
+      Printf.printf "Image generated: kawa_ast.png\n"
+  

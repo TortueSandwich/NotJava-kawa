@@ -25,6 +25,7 @@
         "int",      TINT;
         "bool",     TBOOL;
         "void",     TVOID;
+        "as",       AS;
       ] ;
     fun s ->
       try  Hashtbl.find h s
@@ -78,6 +79,7 @@
     | NEW -> violet^"new"
     | ATTRIBUTE -> violet^"attribute"
     | METHOD -> violet^"method"
+    | AS -> violet^"as"
     | THIS -> orange ^"this"
 
     | TINT -> bleu^"int"
@@ -130,6 +132,7 @@
     | ATTRIBUTE -> "ATTRIBUTE"
     | METHOD -> "METHOD"
     | THIS -> "THIS"
+    | AS -> "AS"
 
     | TINT -> bleu^"TINT"
     | TBOOL -> bleu^"TBOOL"

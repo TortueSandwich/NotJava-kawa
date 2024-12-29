@@ -170,7 +170,7 @@ let () =
       let prog = Kawaparser.program Kawalexer.token lb in
       close_in c;
       let typed_prog = Typechecker.typecheck_prog prog in 
-      if !generate_dot then Visuast.main typed_prog;
+      if !generate_dot then Visuast.main prog;
       Interpreter.exec_prog typed_prog 
       
     with
