@@ -15,7 +15,6 @@ open Arg
 (* lis les parametres donnée à l'exe*)
 let usage_msg = "kawai <file1> [--show-source]"
 let show_source = ref false
-let show_source_debug = ref false
 let input_files = ref []
 let generate_dot = ref false
 
@@ -23,8 +22,7 @@ let speclist =
   [
     ("--show_source", Arg.Set show_source, "Print read file");
     ("-s", Arg.Set show_source, "Print read file");
-    ("-d", Arg.Set generate_dot, "Generate a graphviz visualisation of the AST")
-    ("-d", Arg.Set show_source_debug, "debug read file");
+    ("-d", Arg.Set generate_dot, "Generate a graphviz visualisation of the AST");
   ]
 
 let anon_fun filename = input_files := filename :: !input_files
@@ -164,9 +162,6 @@ let () =
     if !show_source then (
       Printf.printf "\027[2mSource code of %s :\027[0m\n" f;
       lex_and_print_tokens (open_in f));
-    if !show_source_debug then (
-      Printf.printf "\027[2mSource code of %s :\027[0m\n" f;
-      lex_and_debug_tokens (open_in f));
 
     (* (Printf.printf "\027[2mSource code of %s :\027[0m\n" f; print_source f); *)
     try

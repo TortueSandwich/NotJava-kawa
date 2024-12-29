@@ -88,13 +88,17 @@ let exec_prog (p : program) : unit =
       match eval e with VInt n -> n | _ -> assert false
     and evalb (e : expr) = match eval e with VBool b -> b | _ -> assert false
     and evalo (e : expr) = match eval e with VObj o -> o | _ -> assert false
-    and evalunop unop (e : expr) =
-      match unop with Opp -> VInt (-evali e) | Not -> VBool (not (evalb e)) | TypeCast (newType) -> (let v_e = eval e in
-                                                                              check_subtype newType (typ_of_value v_e);
-                                                                              v_e)
+    and evalunop unop (e : expr) = match unop with 
+      | Opp -> VInt (-evali e) 
+      | Not -> VBool (not (evalb e)) 
+      | TypeCast (newType) -> (
+        let v_e = eval e in
+        check_subtype newType (typ_of_value v_e);
+        v_e)
     and evalbinop binop (e1 : expr) (e2 : expr) =
       let int_op f = VInt (f (evali e1) (evali e2)) in
       let bool_op f = VBool (f (evalb e1) (evalb e2)) in
+      let int_to_bool_op f = VBool (f (evali e1) (evali e2)) in
       match binop with
       | Add -> int_op ( + )
       | Sub -> int_op ( - )
@@ -104,12 +108,12 @@ let exec_prog (p : program) : unit =
           if e2_val <> 0 then VInt (evali e1 / e2_val)
           else failwith "Division by 0"
       | Rem -> int_op (mod)
-      | Lt -> bool_op ( < )
-      | Le -> bool_op ( <= )
-      | Gt -> bool_op ( > )
-      | Ge -> bool_op ( >= )
-      | Eq -> bool_op ( = )
-      | Neq -> bool_op ( <> )
+      | Lt -> int_to_bool_op ( < )
+      | Le -> int_to_bool_op ( <= )
+      | Gt -> int_to_bool_op ( > )
+      | Ge -> int_to_bool_op ( >= )
+      | Eq -> int_to_bool_op ( = )
+      | Neq -> int_to_bool_op ( <> )
       | And -> bool_op ( && )
       | Or -> bool_op ( || )
     and eval (e : expr) : value =
