@@ -30,9 +30,9 @@ class triple extends paire {
 
 main {
   t = new triple(3, 4, 5);
-  p = (paire) t; 
+  p = t as paire; 
   print(p.somme());
   // Affiche 7
-  t2 = (triple) p;
+  t2 = p as triple;
   print(t2.somme());
 }

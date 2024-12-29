@@ -18,6 +18,8 @@
 %token EXCLAMATION
 %token TINT TBOOL TVOID
 
+%token AS
+
 %left OR
 %left AND
 %nonassoc EQ NEQ
@@ -27,10 +29,11 @@
 %right UNARY_OP
 %left POINT
 
+%left AS
 
 %start program
 %type <Kawa.program> program
-
+// %type <Kawa.mem_access> lvalue
 
 %%
 
@@ -56,10 +59,6 @@ instruction:
 ;
 
 
-%inline lvalue:
-| s=IDENT {Var(s)}
-| e=lvalue POINT s=IDENT {Field(Get(e),s)}
-;
 
 expression:
 | n=INT { {annot = TInt ; expr = Int(n) }}
@@ -72,12 +71,13 @@ expression:
 | NEW i=IDENT {{annot = TClass(i) ; expr =  New(i)}}
 | NEW i=IDENT LPAR l=separated_list(COMA,expression) RPAR {{annot = TClass(i) ; expr = NewCstr(i, l)}}
 | e=expression POINT s=IDENT LPAR l=separated_list(COMA,expression) RPAR {{annot = TVoid ; expr = MethCall(e,s,l)}}
+| e=expression AS t=kawatype {{annot = TVoid ; expr = Unop(TypeCast(t), e)}}
 ;
 
 %inline unop:
 | MINUS {Opp}
 | EXCLAMATION {Not}
-| LPAR t=kawatype RPAR { TypeCast(t) } 
+// | LPAR t=kawatype RPAR { TypeCast(t) } 
 ;
 
 
