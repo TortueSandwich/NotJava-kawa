@@ -26,6 +26,7 @@
         "bool",     TBOOL;
         "void",     TVOID;
         "as",       AS;
+        "instanceof",  INSTANCEOF;
       ] ;
     fun s ->
       try  Hashtbl.find h s
@@ -85,6 +86,8 @@
     | TINT -> bleu^"int"
     | TBOOL -> bleu^"bool"
     | TVOID -> bleu^"void"
+
+    | INSTANCEOF -> "INTANCEOF"
     
     (* | _ -> "UNKNOWN"  *)
     in t ^"\027[0m"
@@ -137,6 +140,8 @@
     | TINT -> bleu^"TINT"
     | TBOOL -> bleu^"TBOOL"
     | TVOID -> bleu^"TVOID"
+
+    | INSTANCEOF -> "INTANCEOF"
     
     (* | _ -> "UNKNOWN" *)
     in t 
@@ -183,6 +188,8 @@ rule token = parse
 
   | '.' { POINT }
   | ',' { COMA }
+
+  | "instanceof" { INSTANCEOF }
 
   | _    { raise (Error ("unknown character : " ^ lexeme lexbuf)) }
   | eof  { let tok = EOF in tok }

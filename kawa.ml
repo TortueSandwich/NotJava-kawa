@@ -19,7 +19,7 @@ let typ_to_string = function
   | TClass c -> c
 
 
-type unop = Opp | Not | TypeCast of typ
+type unop = Opp | Not | TypeCast of typ | InstanceOf of typ
 
 type binop =
   | Add
@@ -111,7 +111,10 @@ type program = {
   main : seq;
 }
 
-let string_of_unop unop = match unop with Opp -> "Opp" | Not -> "Not" | TypeCast (newType) -> "TypeCast("^( typ_to_string newType) ^ ")"
+let string_of_unop unop = match unop with 
+  Opp -> "Opp" | Not -> "Not" 
+  | TypeCast (newType) -> "TypeCast("^( typ_to_string newType) ^ ")"
+  | InstanceOf (t) -> "InstanceOf ("^( typ_to_string t) ^ ")"
 
 let string_of_biop (biop : binop) : string =
   match biop with

@@ -19,6 +19,7 @@ let add_env l tenv = List.fold_left (fun env (x, t) -> Env.add x t env) tenv l
 
 let type_of_unop = function Opp -> TInt | Not -> TBool 
   | TypeCast (newType) -> newType
+  | InstanceOf (_) -> TBool
 
 let type_of_binop = function
   | Add | Sub | Mul | Div | Rem -> TInt
@@ -68,34 +69,35 @@ let typecheck_prog (p:program) : program =
         match u with
         | Opp ->
             check_eq_type TInt typed_e.annot;
-            e
+            typed_e
         | Not ->
             check_eq_type TBool typed_e.annot;
-            e
-        | TypeCast (newType) -> let typed_e = check_expr e tenv in 
+            typed_e
+        | TypeCast (newType) -> 
             (try 
               check_subtype newType typed_e.annot ; {annot = newType ; expr = typed_e.expr}
             with
-            | _ ->  check_subtype typed_e.annot newType ;{annot = newType ; expr = typed_e.expr})
+            | _ ->  check_subtype typed_e.annot newType ;{annot = newType ; expr = typed_e.expr}
             )
-
+        | InstanceOf (_) -> {annot = TBool ; expr = Unop(u, typed_e)}
+    )
     | Binop (u, e1, e2) -> (
         let typed_e1 = check_expr e1 tenv in
         let typed_e2 = check_expr e2 tenv in
         match u with
-        | Eq -> check_eq_type typed_e1.annot typed_e2.annot; {annot = TBool ; expr = e.expr}
+        | Eq -> check_eq_type typed_e1.annot typed_e2.annot; {annot = TBool ; expr = Binop(u , typed_e1, typed_e2)}
         | Lt | Le | Gt | Ge | Neq ->
             check_eq_type TInt typed_e1.annot;
             check_eq_type TInt typed_e2.annot;
-            {annot = TBool ; expr = e.expr}
+            {annot = TBool ; expr = Binop(u , typed_e1, typed_e2)}
         | Add | Sub | Mul | Div | Rem ->
             check_eq_type TInt typed_e1.annot;
             check_eq_type TInt typed_e2.annot;
-            {annot = TInt ; expr = e.expr}
+            {annot = TInt ; expr =  Binop(u , typed_e1, typed_e2)}
         | And | Or ->
             check_eq_type TBool typed_e1.annot;
             check_eq_type TBool typed_e2.annot;
-            {annot = TBool ; expr = e.expr})
+            {annot = TBool ; expr =  Binop(u , typed_e1, typed_e2)})
     | Get m -> {annot =  type_mem_access m tenv ; expr = e.expr}
     | This -> begin 
         try 
@@ -119,13 +121,15 @@ let typecheck_prog (p:program) : program =
         {annot = TClass class_name ; expr = e.expr}
 
     | MethCall (obj, meth_name, args) ->
-        let typcls = objname_of_typ ((check_expr obj tenv).annot) in
+        let typed_obj = check_expr obj tenv in
+
+        let typcls = objname_of_typ (typed_obj.annot) in
         let defclass = find_class_def typcls in
         let methodeu = find_method_def meth_name defclass.methods in
         let param_types = List.map snd methodeu.params in
-        let arg_types = List.map (fun arg -> (check_expr arg tenv).annot) args in
-        List.iter2 check_subtype param_types arg_types;
-        {annot = methodeu.return ; expr = e.expr}
+        let typed_args = List.map (fun arg -> check_expr arg tenv) args in
+        List.iter2 check_subtype param_types (List.map (fun arg -> arg.annot) typed_args);
+        {annot = methodeu.return ; expr = MethCall(typed_obj , meth_name , typed_args)}
 
   and type_mem_access m tenv : typ =
     match m with
