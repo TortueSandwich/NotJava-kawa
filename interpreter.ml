@@ -95,6 +95,13 @@ let exec_prog (p : program) : unit =
         let v_e = eval e in
         check_subtype newType (typ_of_value v_e);
         v_e)
+      | InstanceOf (t) -> (
+        let v_e = eval e in 
+        try 
+          check_subtype t (typ_of_value v_e); VBool (true)
+        with
+         _ -> VBool (false)
+      )
     and evalbinop binop (e1 : expr) (e2 : expr) =
       let int_op f = VInt (f (evali e1) (evali e2)) in
       let bool_op f = VBool (f (evalb e1) (evalb e2)) in

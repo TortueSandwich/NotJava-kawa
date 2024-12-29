@@ -19,6 +19,7 @@ let add_env l tenv = List.fold_left (fun env (x, t) -> Env.add x t env) tenv l
 
 let type_of_unop = function Opp -> TInt | Not -> TBool 
   | TypeCast (newType) -> newType
+  | InstanceOf (_) -> TBool
 
 let type_of_binop = function
   | Add | Sub | Mul | Div | Rem -> TInt
@@ -76,9 +77,10 @@ let typecheck_prog (p:program) : program =
             (try 
               check_subtype newType typed_e.annot ; {annot = newType ; expr = typed_e.expr}
             with
-            | _ ->  check_subtype typed_e.annot newType ;{annot = newType ; expr = typed_e.expr})
+            | _ ->  check_subtype typed_e.annot newType ;{annot = newType ; expr = typed_e.expr}
             )
-
+        | InstanceOf (_) -> {annot = TBool ; expr = Unop(u, typed_e)}
+    )
     | Binop (u, e1, e2) -> (
         let typed_e1 = check_expr e1 tenv in
         let typed_e2 = check_expr e2 tenv in

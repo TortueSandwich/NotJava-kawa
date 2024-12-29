@@ -17,6 +17,7 @@
 %token POINT COMA 
 %token EXCLAMATION
 %token TINT TBOOL TVOID
+%token INSTANCEOF
 
 %token AS
 
@@ -72,6 +73,7 @@ expression:
 | NEW i=IDENT LPAR l=separated_list(COMA,expression) RPAR {{annot = TClass(i) ; expr = NewCstr(i, l)}}
 | e=expression POINT s=IDENT LPAR l=separated_list(COMA,expression) RPAR {{annot = TVoid ; expr = MethCall(e,s,l)}}
 | e=expression AS t=kawatype {{annot = TVoid ; expr = Unop(TypeCast(t), e)}}
+| e=expression INSTANCEOF t=kawatype {  {annot = TBool ; expr = Unop(InstanceOf(t) , e)}  }
 ;
 
 %inline unop:
