@@ -29,8 +29,8 @@
 %left TIMES DIV MOD
 %right UNARY_OP
 %left POINT
-
-%left AS
+%left INSTANCEOF
+%left AS 
 
 %start program
 %type <Kawa.program> program

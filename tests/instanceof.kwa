@@ -29,6 +29,20 @@ class triple extends paire {
 }
 
 main {
-  t = new triple(3, 4, 5);
-  print(t instanceof paire);
+    t = new triple(3, 4, 5);
+    if(t instanceof triple){
+        print(1);
+    }
+    else{
+        print(0);
+    }
+
+    p = t as paire;
+
+    if(p instanceof triple){
+        print(1);
+    }
+    else{
+        print(0);
+    }
 }
