@@ -77,7 +77,7 @@ expression:
 %inline unop:
 | MINUS {Opp}
 | EXCLAMATION {Not}
-// | LPAR t=kawatype RPAR { TypeCast(t) } 
+//| LPAR t=kawatype RPAR { TypeCast(t) } 
 ;
 
 
