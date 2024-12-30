@@ -113,8 +113,7 @@ let lex_and_print_tokens c =
   try
     loop 1 0;
     print_endline ""
-  with
-  | End_of_file -> ()
+  with End_of_file -> ()
 
 let () =
   let exit code =
@@ -144,9 +143,9 @@ let () =
       flush stdout;
       let prog = Kawaparser.program Kawalexer.token lb in
       close_in c;
-      let typed_prog = Typechecker.typecheck_prog prog in 
+      let typed_prog = Typechecker.typecheck_prog prog in
       if !generate_dot then Visuast.main typed_prog;
-      Interpreter.exec_prog typed_prog       
+      Interpreter.exec_prog typed_prog
     with
     | Kawalexer.Error s ->
         report (lexeme_start_p lb, lexeme_end_p lb);
@@ -162,8 +161,7 @@ let () =
     | Interpreter.Error s ->
         eprintf "\027[91minterpreter error: \027[0m%s@." s;
         exit 1
-
-    | Typechecker.Error s -> 
+    | Typechecker.Error s ->
         eprintf "\027[91mType error: \027[0m%s@." s;
         exit 1
     | e ->

@@ -1,15 +1,14 @@
 open Kawa
-open Typechecker  (*Pour importer check_subtype*)
+open Typechecker (*Pour importer check_subtype*)
 
 type value = VInt of int | VBool of bool | VObj of obj | Null
 and obj = { cls : string; fields : (string, value) Hashtbl.t }
 
-
 let typ_of_value = function
-| VInt (_) -> TInt
-| VBool (_) -> TBool
-| VObj (obj)-> TClass (obj.cls)
-| Null -> TVoid 
+  | VInt _ -> TInt
+  | VBool _ -> TBool
+  | VObj obj -> TClass obj.cls
+  | Null -> TVoid
 
 exception Error of string
 exception Return of value
@@ -50,13 +49,20 @@ let set_in_env env_stack key value =
 (* main attraction *)
 let exec_prog (p : program) : unit =
   let find_class_def class_name = find_class_def class_name p.classes in
-  let check_subtype objective curr = check_subtype objective curr find_class_def in
+  let check_subtype objective curr =
+    check_subtype objective curr find_class_def
+  in
   let env_stack = [ Hashtbl.create 16 ] in
   List.iter (fun (x, _) -> Hashtbl.add (List.hd env_stack) x Null) p.globals;
-  let findclass class_name = List.find (fun x -> x.class_name = class_name) p.classes in
-  let alloc class_name = 
+  let findclass class_name =
+    List.find (fun x -> x.class_name = class_name) p.classes
+  in
+  let alloc class_name =
     let c = findclass class_name in
-    let vartable = List.map (fun x -> (fst x,Null)) c.attributes |> List.to_seq |> Hashtbl.of_seq in
+    let vartable =
+      List.map (fun x -> (fst x, Null)) c.attributes
+      |> List.to_seq |> Hashtbl.of_seq
+    in
     { cls = class_name; fields = vartable }
   in
 
@@ -67,7 +73,9 @@ let exec_prog (p : program) : unit =
       | Some m -> m
       | None -> (
           match defclass.parent with
-          | Some parent -> List.find (fun cls -> cls.class_name = parent) p.classes |> findmethod
+          | Some parent ->
+              List.find (fun cls -> cls.class_name = parent) p.classes
+              |> findmethod
           | None ->
               raise
                 (Error ("Method " ^ f ^ " not found in " ^ defclass.class_name))
@@ -89,20 +97,20 @@ let exec_prog (p : program) : unit =
       match eval e with VInt n -> n | _ -> assert false
     and evalb (e : expr) = match eval e with VBool b -> b | _ -> assert false
     and evalo (e : expr) = match eval e with VObj o -> o | _ -> assert false
-    and evalunop unop (e : expr) = match unop with 
-      | Opp -> VInt (-evali e) 
-      | Not -> VBool (not (evalb e)) 
-      | TypeCast (newType) -> (
-        let v_e = eval e in
-        check_subtype newType (typ_of_value v_e);
-        v_e)
-      | InstanceOf (t) -> (
-        let v_e = eval e in 
-        try 
-          check_subtype t (typ_of_value v_e); VBool (true)
-        with
-         _ -> VBool (false)
-      )
+    and evalunop unop (e : expr) =
+      match unop with
+      | Opp -> VInt (-evali e)
+      | Not -> VBool (not (evalb e))
+      | TypeCast newType ->
+          let v_e = eval e in
+          check_subtype newType (typ_of_value v_e);
+          v_e
+      | InstanceOf t -> (
+          let v_e = eval e in
+          try
+            check_subtype t (typ_of_value v_e);
+            VBool true
+          with _ -> VBool false)
     and evalbinop binop (e1 : expr) (e2 : expr) =
       let int_op f = VInt (f (evali e1) (evali e2)) in
       let bool_op f = VBool (f (evalb e1) (evalb e2)) in
@@ -115,7 +123,7 @@ let exec_prog (p : program) : unit =
           let e2_val = evali e2 in
           if e2_val <> 0 then VInt (evali e1 / e2_val)
           else failwith "Division by 0"
-      | Rem -> int_op (mod)
+      | Rem -> int_op ( mod )
       | Lt -> int_to_bool_op ( < )
       | Le -> int_to_bool_op ( <= )
       | Gt -> int_to_bool_op ( > )
@@ -137,11 +145,13 @@ let exec_prog (p : program) : unit =
               let o = evalo obj in
               Hashtbl.find o.fields field_name)
       | This -> find_in_env env_stack "this"
-      | New class_name -> VObj(alloc class_name)
+      | New class_name -> VObj (alloc class_name)
       | NewCstr (class_name, args) ->
           let instance = alloc class_name in
           let n = eval_call "constructor" instance (List.map eval args) in
-          if n <> Null then raise (Error("A constructor must not return anything")) (* already checked by compiler *)
+          if n <> Null then
+            (* already checked by compiler *)
+            raise (Error "A constructor must not return anything")
           else VObj instance
       | MethCall (obj, meth_name, args) ->
           eval_call meth_name (evalo obj) (List.map eval args)

@@ -11,15 +11,15 @@ let fresh_id =
 
 (* Utilitaires pour la génération de nœuds et connexions *)
 let create_node id label typ =
-  if typ = "" then 
-    Printf.sprintf "  node%d [label=\"%s\"];" id label
-  else 
-    Printf.sprintf "  node%d [label=<%s <BR/><FONT POINT-SIZE=\"8.0\">%s</FONT>>];" id label typ
+  if typ = "" then Printf.sprintf "  node%d [label=\"%s\"];" id label
+  else
+    Printf.sprintf
+      "  node%d [label=<%s <BR/><FONT POINT-SIZE=\"8.0\">%s</FONT>>];" id label
+      typ
 
 let create_connection ?(label = "") from_id to_id =
   if label = "" then Printf.sprintf "  node%d -> node%d;" from_id to_id
   else Printf.sprintf "  node%d -> node%d [label=\"%s\"];" from_id to_id label
-
 
 (* Fonction générique pour une expression *)
 let rec expr_to_dot with_id (e : expr) =
@@ -32,9 +32,8 @@ let rec expr_to_dot with_id (e : expr) =
   | Binop (opp, e1, e2) ->
       let op_str = string_of_biop opp in
       let currnode = create_node with_id op_str in
-      let (argnodes, argcon) = create_node_and_connections with_id [e1; e2] in
-      ( currnode :: argnodes,
-        argcon )
+      let argnodes, argcon = create_node_and_connections with_id [ e1; e2 ] in
+      (currnode :: argnodes, argcon)
   | Get m ->
       let currnode = create_node with_id "get" in
       let m_id = fresh_id () in
@@ -53,9 +52,10 @@ let rec expr_to_dot with_id (e : expr) =
       let c_id = fresh_id () in
       let cls_node = create_node c_id s in
       let con = create_connection with_id c_id in
-      let (argnodes, argcon) = create_node_and_connections with_id l ~ordered:true in
-      ( [ currnode; cls_node ] @ argnodes,
-        con :: argcon )
+      let argnodes, argcon =
+        create_node_and_connections with_id l ~ordered:true
+      in
+      ([ currnode; cls_node ] @ argnodes, con :: argcon)
   | MethCall (e, s, l) ->
       let currnode = create_node with_id "." in
       let c_id = fresh_id () in
@@ -68,39 +68,38 @@ let rec expr_to_dot with_id (e : expr) =
           create_connection with_id e_id ~label:"on";
         ]
       in
-      let (argnodes, argcon) = create_node_and_connections with_id l ~ordered:true in
-      ( [ currnode; cls_node ] @ e_node @ argnodes,
-        con @ e_con @ argnodes)
-  | Unop (opp,e) ->
-    let op_str = string_of_unop opp in
-    let currnode = create_node with_id op_str in
-    let (argnodes, argcon) = create_node_and_connections with_id [e] in
-    (* ( currnode :: argnodes,
+      let argnodes, argcon =
+        create_node_and_connections with_id l ~ordered:true
+      in
+      ([ currnode; cls_node ] @ e_node @ argnodes, con @ e_con @ argnodes)
+  | Unop (opp, e) -> (
+      let op_str = string_of_unop opp in
+      let currnode = create_node with_id op_str in
+      let argnodes, argcon = create_node_and_connections with_id [ e ] in
+      (* ( currnode :: argnodes,
       argcon ) *)
-    begin match opp with
-    | TypeCast t ->  
-      let t_id = fresh_id () in 
-      let t_node = create_node t_id (typ_to_string t) in
-      let t_con = create_connection with_id t_id in 
-      ( currnode :: t_node :: argnodes,
-      t_con :: argcon )
-    | _ -> ( currnode :: argnodes, argcon )
+      match opp with
+      | TypeCast t ->
+          let t_id = fresh_id () in
+          let t_node = create_node t_id (typ_to_string t) in
+          let t_con = create_connection with_id t_id in
+          (currnode :: t_node :: argnodes, t_con :: argcon)
+      | _ -> (currnode :: argnodes, argcon))
 
-  end
-  
-  (* | _ ->
+(* | _ ->
       let node = create_node with_id "Non traité (expr)" in
       ([ node ], []) *)
-  
 
 and typed_expr_to_dot with_id expr = expr_to_dot with_id expr
 
-and create_node_and_connections ?(ordered=false) with_id (childrens: expr list) =
+and create_node_and_connections ?(ordered = false) with_id
+    (childrens : expr list) =
   let l = List.map (fun x -> (fresh_id (), x)) childrens in
   let connections =
     List.mapi
       (fun i (id, _) ->
-        create_connection with_id id ~label:(if ordered then string_of_int i else ""))
+        create_connection with_id id
+          ~label:(if ordered then string_of_int i else ""))
       l
   in
   let l = List.map (fun (id, x) -> typed_expr_to_dot id x) l in
@@ -117,7 +116,7 @@ and mem_to_dot withid (m : Kawa.mem_access) =
       let f_id = fresh_id () in
       let e_id = fresh_id () in
       let n, c = typed_expr_to_dot e_id e in
-      let nodes = [ create_node f_id s ""; create_node withid "." ""] in
+      let nodes = [ create_node f_id s ""; create_node withid "." "" ] in
       let connections =
         [ create_connection withid e_id; create_connection withid f_id ]
       in
@@ -125,7 +124,7 @@ and mem_to_dot withid (m : Kawa.mem_access) =
 
 (* Fonction pour une instruction *)
 and inst_to_dot with_id instr =
-  let create_node with_id lab = create_node with_id lab "" in 
+  let create_node with_id lab = create_node with_id lab "" in
   match instr with
   | Print e ->
       let currnode = create_node with_id "Print" in
@@ -206,7 +205,7 @@ and seq_to_dot seq withid =
 (* Fonction principale pour un programme *)
 let program_to_dot program output_file =
   let main_id = fresh_id () in
-  let main_node = create_node main_id "main"  "" in
+  let main_node = create_node main_id "main" "" in
   let nodes, connections = seq_to_dot program.main main_id in
 
   let dot_content =
@@ -226,11 +225,13 @@ let main (p : program) =
 
   let check_dot = Sys.command "which dot > /dev/null 2>&1" in
   if check_dot <> 0 then
-    Printf.printf "Error: The 'dot' command is not installed. Please install Graphviz.\n"
+    Printf.printf
+      "Error: The 'dot' command is not installed. Please install Graphviz.\n"
   else
     let result = Sys.command "dot -Tpng kawa_ast.dot -o kawa_ast.png" in
     if result <> 0 then
-      Printf.printf "Error: Failed to execute 'dot' command. Check your DOT file and Graphviz installation.\n(or error in dot, try ``dot -Tpng kawa_ast.dot -o kawa_ast.png`` ?)\n"
-    else
-      Printf.printf "Image generated: kawa_ast.png\n"
-  
+      Printf.printf
+        "Error: Failed to execute 'dot' command. Check your DOT file and \
+         Graphviz installation.\n\
+         (or error in dot, try ``dot -Tpng kawa_ast.dot -o kawa_ast.png`` ?)\n"
+    else Printf.printf "Image generated: kawa_ast.png\n"
