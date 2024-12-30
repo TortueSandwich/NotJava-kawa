@@ -17,9 +17,7 @@
 %token POINT COMA 
 %token EXCLAMATION
 %token TINT TBOOL TVOID
-%token INSTANCEOF
-
-%token AS
+%token INSTANCEOF, AS
 
 %left OR
 %left AND
@@ -34,7 +32,6 @@
 
 %start program
 %type <Kawa.program> program
-// %type <Kawa.mem_access> lvalue
 
 %%
 
@@ -57,6 +54,7 @@ instruction:
 | WHILE LPAR e=expression RPAR BEGIN i=list(instruction) END {While(e,i)}
 | RETURN e=expression SEMI {Return(e)}
 | e=expression SEMI {Expr(e)}
+| BEGIN l=list(instruction) END {Scope(l)}
 ;
 
 
@@ -76,27 +74,10 @@ expression:
 | e=expression INSTANCEOF t=kawatype {  {annot = TBool ; expr = Unop(InstanceOf(t) , e)}  }
 ;
 
-%inline unop:
-| MINUS {Opp}
-| EXCLAMATION {Not}
-//| LPAR t=kawatype RPAR { TypeCast(t) } 
+var_decl:
+| VAR t=kawatype v=IDENT SEMI {[(v, t)]}
+// | VAR t=kawatype l=separated_nonempty_list(COMA, IDENT) SEMI {List.map (fun x -> (x,t)) l}
 ;
-
-
-%inline mem:
-| s=IDENT {Var(s) }
-| e=expression POINT s=IDENT {Field(e,s)}
-;
-
-
-%inline kawatype:
-| TINT {TInt}
-| TBOOL {TBool}
-| TVOID {TVoid}
-| s=IDENT {TClass(s)}
-;
-
-
 
 class_def: 
 | CLASS class_name=IDENT parent=extends? BEGIN attributes=list(attr_decl) methods=list(method_def) END {
@@ -108,22 +89,39 @@ extends :
 | EXTENDS parent_name=IDENT {parent_name}
 ;
 
-var_decl:
-| VAR t=kawatype l=separated_nonempty_list(COMA, IDENT) SEMI {List.map (fun x -> (x,t)) l}
-;
 
 attr_decl:
 | ATTRIBUTE t=kawatype s=IDENT SEMI {(s,t)}
-
+;
 
 param:
 | t=kawatype name=IDENT { (name, t) }
+;
 
 method_def: 
 | METHOD return=kawatype method_name=IDENT LPAR params=separated_list(COMA,param) RPAR BEGIN locals=list(var_decl) code=list(instruction) END
 {
   let locals = List.flatten locals in
   { method_name; code; params; locals; return;}}
+;
+
+
+%inline mem:
+| s=IDENT {Var(s) }
+| e=expression POINT s=IDENT {Field(e,s)}
+;
+
+%inline kawatype:
+| TINT {TInt}
+| TBOOL {TBool}
+| TVOID {TVoid}
+| s=IDENT {TClass(s)}
+;
+
+%inline unop:
+| MINUS {Opp}
+| EXCLAMATION {Not}
+//| LPAR t=kawatype RPAR { TypeCast(t) } 
 ;
 
 %inline binop:

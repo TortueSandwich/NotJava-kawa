@@ -27,6 +27,7 @@
         "void",     TVOID;
         "as",       AS;
         "instanceof",  INSTANCEOF;
+        (* "impl",     IMPL; *)
       ] ;
     fun s ->
       try  Hashtbl.find h s
@@ -43,9 +44,9 @@
     | PRINT -> violet^"print"
     | MAIN -> "\027[34mmain"
     | VAR -> violet^"var "
-    | IDENT(s) -> Printf.sprintf "\027[36m%s" s
-    | INT(n) -> Printf.sprintf "\027[96m%d" n
-    | BOOL(b:bool) -> Printf.sprintf "\027[96m%b" b
+    | IDENT(s) ->  "\027[36mId("^s^")"
+    | INT(n) -> "\027[96m" ^ (string_of_int n)
+    | BOOL(b:bool) -> "\027[96m" ^ (string_of_bool b)
     | SEMI -> jaune^";"
     | LPAR -> jaune^"("
     | RPAR -> jaune^")"
@@ -82,70 +83,15 @@
     | METHOD -> violet^"method"
     | AS -> violet^"as"
     | THIS -> orange ^"this"
+    | INSTANCEOF -> violet^"instanceof"
+    (* | IMPL -> violet^"impl" *)
 
     | TINT -> bleu^"int"
     | TBOOL -> bleu^"bool"
     | TVOID -> bleu^"void"
 
-    | INSTANCEOF -> "INTANCEOF"
-    
     (* | _ -> "UNKNOWN"  *)
-    in t ^"\027[0m"
-
-  let token_to_string_debug s = 
-    let t = match s with
-    | PRINT -> "PRINT"
-    | MAIN -> "MAIN"
-    | VAR -> "VAR"
-    | IDENT(s) -> Printf.sprintf "IDENT(%s)" s
-    | INT(n) -> Printf.sprintf "IDENT(%d)" n
-    | BOOL(b:bool) -> Printf.sprintf "BOOL(%b)" b
-    | SEMI -> "SEMI"
-    | LPAR -> "LPAR"
-    | RPAR -> "RPAR"
-    | BEGIN -> "BEGIN"
-    | END -> "END"
-    | COMA -> "COMA"
-    | PLUS -> "PLUS"
-    | MINUS -> "MINUS"
-    | TIMES -> "TIMES"
-    | DIV -> "DIV"
-    | EQ -> "EQ"
-    | NEQ -> "NEQ"
-    | MOD -> "MOD"
-    | AFFECT -> "AFFECT"
-    | POINT -> "POINT"
-    | EXCLAMATION -> "EXCLAMATION"
-
-    | LT -> "LT"
-    | LEQ -> "LEQ"
-    | GT -> "GT"
-    | GEQ -> "GEQ"
-    | AND -> "AND"
-    | OR -> "OR"
-
-    | EOF -> "EOF"
-    | WHILE -> "WHILE"
-    | IF -> "IF"
-    | ELSE -> "ELSE"
-    | CLASS -> "CLASS"
-    | EXTENDS -> "EXTENDS"
-    | RETURN -> "RETURN"
-    | NEW -> "NEW"
-    | ATTRIBUTE -> "ATTRIBUTE"
-    | METHOD -> "METHOD"
-    | THIS -> "THIS"
-    | AS -> "AS"
-
-    | TINT -> bleu^"TINT"
-    | TBOOL -> bleu^"TBOOL"
-    | TVOID -> bleu^"TVOID"
-
-    | INSTANCEOF -> "INTANCEOF"
-    
-    (* | _ -> "UNKNOWN" *)
-    in t 
-    
+    in t ^"\027[0m"    
 }
 
 let digit = ['0'-'9']

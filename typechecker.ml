@@ -25,7 +25,7 @@ let type_of_binop = function
   | Add | Sub | Mul | Div | Rem -> TInt
   | Lt | Le | Gt | Ge | Eq | Neq | And | Or -> TBool
 
- 
+(** ctx, expected, actual *)
 let check_eq_type ?(context="") expected actual =
   if expected <> actual then type_error ~context actual expected
 
@@ -101,11 +101,8 @@ let typecheck_prog (p:program) : program =
     | Get m -> {annot =  type_mem_access m tenv ; expr = e.expr}
     | This -> begin 
         try 
-        (* let c = List.find (fun cls -> cls.class_name = "this") tenv *)
-        let c = Env.find "this" tenv 
-        in 
-        (* TClass (c.class_name) *)
-        {annot = c ; expr = e.expr}
+          let this = Env.find "this" tenv in 
+          {annot = this ; expr = e.expr}
         with Not_found -> error ("Class not found: " ^ "this")
     end
 
@@ -154,21 +151,21 @@ let typecheck_prog (p:program) : program =
         )
         
   
-  and check_instr i ret tenv : instr=
+  and check_instr i ret tenv : instr =
     match i with
     | Print e ->
         let typed_e = check_expr e tenv in 
-        typed_e.annot |> check_eq_type TInt; Print(typed_e) 
+        check_eq_type TInt typed_e.annot; Print(typed_e) 
     | If (cond, ifseq, elseseq) -> (
         let typed_cond = check_expr cond tenv in
-        typed_cond.annot |> check_eq_type TBool;
+        check_eq_type TBool typed_cond.annot;
         If(typed_cond, check_seq ifseq TVoid tenv, check_seq elseseq TVoid tenv))
     | While (cond, iseq) ->
         let typed_cond = check_expr cond tenv in
-        typed_cond.annot |> check_eq_type TBool;
+        check_eq_type TBool typed_cond.annot;
         While(typed_cond , check_seq iseq TVoid tenv )
     | Set (m, e) -> let typed_e = check_expr e tenv in
-      typed_e.annot |> check_subtype (type_mem_access m tenv) ;  Set(m,typed_e)
+      check_subtype typed_e.annot (type_mem_access m tenv) ;  Set(m,typed_e)
     | Return e ->
         let typed_e = check_expr e tenv in
         check_eq_type typed_e.annot ret;
@@ -176,6 +173,7 @@ let typecheck_prog (p:program) : program =
     | Expr e -> let typed_e = check_expr e tenv in
                   check_eq_type typed_e.annot TVoid;
                   Expr e
+    | Scope _ as s-> s
   and check_seq s ret tenv : seq = List.map (fun i -> check_instr i ret tenv) s in
   let typed_seq = check_seq p.main TVoid tenv in 
 

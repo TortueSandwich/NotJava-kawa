@@ -47,6 +47,7 @@ let set_in_env env_stack key value =
   | [] -> raise (Error ("Impossible de définir la variable: " ^ key))
   | env :: _ -> Hashtbl.replace env key value (* print_hashtable env; *)
 
+(* main attraction *)
 let exec_prog (p : program) : unit =
   let find_class_def class_name = find_class_def class_name p.classes in
   let check_subtype objective curr = check_subtype objective curr find_class_def in
@@ -164,6 +165,7 @@ let exec_prog (p : program) : unit =
               Hashtbl.replace o.fields field_name (eval e))
       | Return e -> raise (Return (eval e))
       | Expr e -> ignore (eval e)
+      | Scope s -> exec_seq s env_stack
     and exec_seq s env_stack =
       let env_stack = push_env env_stack in
       List.iter (fun instr -> exec instr) s;
