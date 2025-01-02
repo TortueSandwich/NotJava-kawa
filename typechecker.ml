@@ -1,5 +1,5 @@
 open Kawa
-
+open Tools
 exception Error of string
 
 let error s = raise (Error s)
@@ -44,7 +44,10 @@ let rec check_subtype objective curr (find_class_def: string -> class_def) =
 
 let find_class_def class_name classes =
   try List.find (fun cls -> cls.class_name = class_name) classes
-  with Not_found -> error ("Class not found: " ^ class_name)
+  with Not_found -> let classes_names = List.map (fun cls -> cls.class_name) classes in
+     error ("Class not found: " ^ class_name ^ (match closest_string class_name classes_names with
+     | Some closest -> ", did you mean " ^ closest ^ " ?\n"
+     | None -> ""))
 
 let find_method_def meth_name methods =
   match List.find_opt (fun m -> m.method_name = meth_name) methods with
@@ -52,6 +55,9 @@ let find_method_def meth_name methods =
   | None -> error ("Method not found: " ^ meth_name)
 
 let objname_of_typ = function TClass clsname -> clsname | _ -> assert false
+
+let keys_of_map (map: 'a Env.t) : string list =
+  Env.fold (fun key _ acc -> key :: acc) map []
 
 let typecheck_prog (p:program) : program =
   let tenv = Env.empty in
@@ -110,7 +116,7 @@ let typecheck_prog (p:program) : program =
     end
 
     | New class_name -> 
-      (* todo check si la classe existe *)
+      ignore(find_class_def class_name);     (*checks existance*)
       {annot = TClass class_name ; expr = e.expr}
     | NewCstr (class_name, args) ->
         let defclass = find_class_def class_name in
@@ -136,7 +142,10 @@ let typecheck_prog (p:program) : program =
     | Var name -> (
         match Env.find_opt name tenv with
         | Some typ -> typ
-        | None -> error ("Undeclared variable: " ^ name))
+        | None -> error ("Undeclared variable: " ^ name ^ (match closest_string name (keys_of_map tenv) with
+          | Some closest -> ", did you mean " ^ closest ^ " ?\n"
+          | None -> ""))
+        )
     | Field (obj, field_name) -> (
         let cls_name = objname_of_typ ((check_expr obj tenv).annot) in
         let class_def = find_class_def cls_name in
@@ -201,4 +210,3 @@ let typecheck_prog (p:program) : program =
 
   {classes = typed_classes ; globals = p.globals ; main = typed_seq}
 
-  

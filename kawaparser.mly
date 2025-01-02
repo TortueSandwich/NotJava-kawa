@@ -36,7 +36,12 @@
 %type <Kawa.program> program
 // %type <Kawa.mem_access> lvalue
 
+
+%on_error_reduce expression
+
 %%
+
+
 
 program:
   globals=list(var_decl)
@@ -51,14 +56,18 @@ program:
 ;
 
 instruction:
-| PRINT LPAR e=expression RPAR SEMI {Print(e)}
-| m=mem AFFECT e=expression SEMI {Set(m, e)}
+| PRINT LPAR e=expression RPAR check_semi {Print(e)}
+| m=mem AFFECT e=expression check_semi {Set(m, e)}
 | IF LPAR e=expression RPAR BEGIN iif=list(instruction) END ELSE BEGIN ielse=list(instruction) END {If(e, iif, ielse)}
 | WHILE LPAR e=expression RPAR BEGIN i=list(instruction) END {While(e,i)}
-| RETURN e=expression SEMI {Return(e)}
-| e=expression SEMI {Expr(e)}
+| RETURN e=expression check_semi {Return(e)}
+| e=expression check_semi {Expr(e)}
 ;
 
+check_semi:
+| SEMI { () }
+| error { print_string "Missing semicolon.\n"; }
+;
 
 
 expression:

@@ -10,6 +10,7 @@
 
 open Format
 open Lexing
+open Kawaparser
 open Arg
 
 (* lis les parametres donnée à l'exe*)
@@ -180,6 +181,7 @@ let () =
         eprintf "\027[0m";
         exit 1
     | Kawaparser.Error ->
+        (*A modifier pour enlever les éléments liées à menhir*)
         report (lexeme_start_p lb, lexeme_end_p lb);
         eprintf "\027[91msyntax error\027[0m (parser)@.";
         eprintf "\027[91msyntax error:\027[0m Unexpected token: %s\n"
@@ -189,10 +191,10 @@ let () =
     | Interpreter.Error s ->
         eprintf "\027[91minterpreter error: \027[0m%s@." s;
         exit 1
-
     | Typechecker.Error s -> 
         eprintf "\027[91mType error: \027[0m%s@." s;
         exit 1
+    
     | e ->
         eprintf "\027[91mAnomaly:\027[0m %s\n@." (Printexc.to_string e);
         (* lex_and_print_tokens (open_in f); *)
