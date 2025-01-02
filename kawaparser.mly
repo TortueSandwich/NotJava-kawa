@@ -3,6 +3,8 @@
   open Lexing
   open Kawa
 
+  exception ParserError of string
+
 %}
 
 %token MAIN BEGIN END EOF
@@ -40,7 +42,7 @@ program:
   classes=list(class_def)
   MAIN BEGIN 
   i=list(instruction)
-  END EOF
+  end_handled EOF
   {
     let (globals, globals_init) = 
       List.fold_left 
@@ -53,7 +55,7 @@ program:
 ;
 
 globals_var_decl:
-| VAR t=kawatype vars=separated_nonempty_list(COMA, IDENT) value=affectation? SEMI { 
+| VAR t=kawatype vars=separated_nonempty_list(COMA, IDENT) value=affectation? semi_handled { 
   let defs = List.map (fun var -> (var, t)) vars in
   let instrs = match value with 
   | None -> []
@@ -64,15 +66,31 @@ globals_var_decl:
 ;
 
 instruction:
-| PRINT LPAR e=expression RPAR SEMI {Print(e)}
-| m=mem AFFECT e=expression SEMI {Set(m, e)}
-| IF LPAR e=expression RPAR BEGIN iif=list(instruction) END ELSE BEGIN ielse=list(instruction) END {If(e, iif, ielse)}
-| WHILE LPAR e=expression RPAR BEGIN i=list(instruction) END {While(e,i)}
-| RETURN e=expression SEMI {Return(e)}
-| e=expression SEMI {Expr(e)}
-| BEGIN l=list(instruction) END {Scope(l)}
+| PRINT LPAR e=expression rpar_handled semi_handled {Print(e)}
+| m=mem AFFECT e=expression semi_handled {Set(m, e)}
+| IF LPAR e=expression rpar_handled BEGIN iif=list(instruction) end_handled ELSE BEGIN ielse=list(instruction) end_handled {If(e, iif, ielse)}
+| WHILE LPAR e=expression rpar_handled BEGIN i=list(instruction) end_handled {While(e,i)}
+| RETURN e=expression semi_handled {Return(e)}
+| e=expression semi_handled {Expr(e)}
+| BEGIN l=list(instruction) end_handled {Scope(l)}
 | x=var_decl { let (a,b,c) = x in Declare(a,b,c) }
 ;
+
+semi_handled : 
+| error {raise (ParserError("point-virgule manquant"))}
+| SEMI { () }
+
+
+end_handled : 
+| error {raise (ParserError("une accolade n'est pas fermee"))}
+| END { () }
+
+
+rpar_handled : 
+| error {raise (ParserError("une paranthese n'est pas fermee"))}
+| RPAR { () }
+
+
 
 expression:
 | n=INT { {annot = TInt ; expr = Int(n) }}
@@ -81,16 +99,16 @@ expression:
 | m=mem {{annot = TVoid ; expr = Get(m)}}
 | o=unop e=expression %prec UNARY_OP {{annot = TVoid ; expr = Unop(o, e)}}
 | e=expression o=binop f=expression { {annot = TVoid ; expr = Binop(o,e,f)} }
-| LPAR e=expression RPAR { e }
+| LPAR e=expression rpar_handled { e }
 | NEW i=IDENT {{annot = TClass(i) ; expr =  New(i)}}
-| NEW i=IDENT LPAR l=separated_list(COMA,expression) RPAR {{annot = TClass(i) ; expr = NewCstr(i, l)}}
-| e=expression POINT s=IDENT LPAR l=separated_list(COMA,expression) RPAR {{annot = TVoid ; expr = MethCall(e,s,l)}}
+| NEW i=IDENT LPAR l=separated_list(COMA,expression) rpar_handled {{annot = TClass(i) ; expr = NewCstr(i, l)}}
+| e=expression POINT s=IDENT LPAR l=separated_list(COMA,expression) rpar_handled {{annot = TVoid ; expr = MethCall(e,s,l)}}
 | e=expression AS t=kawatype {{annot = TVoid ; expr = Unop(TypeCast(t), e)}}
 | e=expression INSTANCEOF t=kawatype {  {annot = TBool ; expr = Unop(InstanceOf(t) , e)}  }
 ;
 
 var_decl:
-| VAR t=kawatype vars=separated_nonempty_list(COMA, IDENT) value=affectation? SEMI { (vars, t, value) }
+| VAR t=kawatype vars=separated_nonempty_list(COMA, IDENT) value=affectation? semi_handled { (vars, t, value) }
 ;
 
 affectation:
@@ -98,7 +116,7 @@ affectation:
 ;
 
 class_def: 
-| CLASS class_name=IDENT parent=extends? BEGIN attributes=list(attr_decl) methods=list(method_def) END {
+| CLASS class_name=IDENT parent=extends? BEGIN attributes=list(attr_decl) methods=list(method_def) end_handled {
    { class_name; attributes; methods; parent } 
 }
 ;
@@ -109,7 +127,7 @@ extends :
 
 
 attr_decl:
-| ATTRIBUTE t=kawatype s=IDENT SEMI {(s,t)}
+| ATTRIBUTE t=kawatype s=IDENT semi_handled {(s,t)}
 ;
 
 param:
@@ -117,9 +135,9 @@ param:
 ;
 
 method_def: 
-| METHOD return=kawatype method_name=IDENT LPAR params=separated_list(COMA,param) RPAR BEGIN 
+| METHOD return=kawatype method_name=IDENT LPAR params=separated_list(COMA,param) rpar_handled BEGIN 
 // locals=list(var_decl)
- code=list(instruction) END
+ code=list(instruction) end_handled
 {
   (* let locals = List.flatten locals in *)
   { method_name; code; params; locals=[]; return;}}
@@ -140,7 +158,6 @@ method_def:
 %inline unop:
 | MINUS {Opp}
 | EXCLAMATION {Not}
-//| LPAR t=kawatype RPAR { TypeCast(t) } 
 ;
 
 %inline binop:

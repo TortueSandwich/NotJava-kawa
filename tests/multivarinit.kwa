@@ -12,6 +12,8 @@ class oue {
 main {
   print(h);
   print(x+y+z);
+  var int k = 2025;
   maisoui.test();
-  // affiche 5 puis 15 puis 420
+  print(k);
+  // affiche 5 puis 15 puis 420 et 2025
 }
