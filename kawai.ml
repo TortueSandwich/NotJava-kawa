@@ -140,6 +140,24 @@ let lex_and_debug_tokens c =
   with
   | End_of_file -> ()
 
+let extract_parentheses_content s =
+  try
+    let start_idx = String.index s '(' in
+    let end_idx = String.index s ')' in
+    if start_idx < end_idx then
+      String.sub s (start_idx + 1) (end_idx - start_idx - 1)
+    else
+      raise (Invalid_argument "Invalid string format")
+  with Not_found -> raise (Invalid_argument "Parentheses not found")
+
+let custom_printexc_to_string exn =
+  let original_output = Printexc.to_string exn in
+  let extracted_content = 
+    try extract_parentheses_content original_output 
+    with Invalid_argument _ -> original_output
+  in
+  "\027[91m SyntaxError:\027[0m " ^ extracted_content
+
 let () =
   let exit code =
     if !input_files = [] then
@@ -196,7 +214,7 @@ let () =
         exit 1
     
     | e ->
-        eprintf "\027[91mAnomaly:\027[0m %s\n@." (Printexc.to_string e);
+        eprintf "%s\n@." (custom_printexc_to_string e);
         (* lex_and_print_tokens (open_in f); *)
         exit 2
   in

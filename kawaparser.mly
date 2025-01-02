@@ -3,6 +3,7 @@
   open Lexing
   open Kawa
 
+  exception ParserError of string
 %}
 
 %token MAIN BEGIN END EOF
@@ -37,7 +38,6 @@
 // %type <Kawa.mem_access> lvalue
 
 
-%on_error_reduce expression
 
 %%
 
@@ -66,7 +66,7 @@ instruction:
 
 check_semi:
 | SEMI { () }
-| error { print_string "Missing semicolon.\n"; }
+| error { raise (ParserError "Missing semicolon") }
 ;
 
 
