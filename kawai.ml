@@ -10,7 +10,7 @@
 
 open Format
 open Lexing
-open Kawaparser
+
 open Arg
 
 (* lis les parametres donnée à l'exe*)
@@ -188,7 +188,7 @@ let () =
       flush stdout;
       let prog = Kawaparser.program Kawalexer.token lb in
       close_in c;
-      let typed_prog = Typechecker.typecheck_prog prog in 
+      let typed_prog = Typechecker.typecheck_prog prog f in 
       if !generate_dot then Visuast.main typed_prog;
       Interpreter.exec_prog typed_prog 
       
@@ -209,10 +209,9 @@ let () =
     | Interpreter.Error s ->
         eprintf "\027[91minterpreter error: \027[0m%s@." s;
         exit 1
-    | Typechecker.Error s -> 
+    | Typechecker.TypeError s -> 
         eprintf "\027[91mType error: \027[0m%s@." s;
         exit 1
-    
     | e ->
         eprintf "%s\n@." (custom_printexc_to_string e);
         (* lex_and_print_tokens (open_in f); *)

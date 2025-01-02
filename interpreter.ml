@@ -148,14 +148,14 @@ let exec_prog (p : program) : unit =
     in
 
     let rec exec (i : instr) : unit =
-      match i with
+      match i.instr with
       | Print e -> Printf.printf "%d\n" (evali e)
       | If (cond, ifseq, elseseq) ->
           exec_seq (if evalb cond then ifseq else elseseq) env_stack
       | While (cond, iseq) ->
           if evalb cond then (
             exec_seq iseq env_stack;
-            exec (While (cond, iseq)))
+            exec ({instr = While (cond, iseq); loc = i.loc}))
       | Set (m, e) -> (
           match m with
           | Var name -> set_in_env env_stack name (eval e)

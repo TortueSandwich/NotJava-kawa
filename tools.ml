@@ -1,3 +1,4 @@
+open Lexing
 let min3 a b c = min a (min b c)
 
 let levenshtein_distance s1 s2 =
@@ -38,4 +39,18 @@ let closest_string target lst =
   match lst with
   | [] -> None
   | hd :: tl -> find_closest hd (levenshtein_distance target hd) tl
+
+let get_string_from_file filename (start_pos, end_pos) =
+  let ic = open_in filename in
+  let buffer = Buffer.create (end_pos.pos_cnum - start_pos.pos_cnum) in
+  try
+    seek_in ic start_pos.pos_cnum;
+    for _ = start_pos.pos_cnum to end_pos.pos_cnum - 1 do
+      Buffer.add_char buffer (input_char ic)
+    done;
+    close_in ic;
+    Buffer.contents buffer
+  with e ->
+    close_in_noerr ic;
+    raise e
 

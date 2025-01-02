@@ -56,12 +56,12 @@ program:
 ;
 
 instruction:
-| PRINT LPAR e=expression RPAR check_semi {Print(e)}
-| m=mem AFFECT e=expression check_semi {Set(m, e)}
-| IF LPAR e=expression RPAR BEGIN iif=list(instruction) END ELSE BEGIN ielse=list(instruction) END {If(e, iif, ielse)}
-| WHILE LPAR e=expression RPAR BEGIN i=list(instruction) END {While(e,i)}
-| RETURN e=expression check_semi {Return(e)}
-| e=expression check_semi {Expr(e)}
+| PRINT LPAR e=expression RPAR check_semi { {instr = Print(e); loc = $loc} }
+| m=mem AFFECT e=expression check_semi { {instr = Set(m, e); loc = $loc} }
+| IF LPAR e=expression RPAR BEGIN iif=list(instruction) END ELSE BEGIN ielse=list(instruction) END { {instr = If(e, iif, ielse); loc = $loc} }
+| WHILE LPAR e=expression RPAR BEGIN i=list(instruction) END { {instr = While(e,i); loc = $loc} }
+| RETURN e=expression check_semi { {instr = Return(e); loc = $loc} }
+| e=expression check_semi { {instr = Expr(e); loc = $loc} }
 ;
 
 check_semi:
@@ -71,18 +71,18 @@ check_semi:
 
 
 expression:
-| n=INT { {annot = TInt ; expr = Int(n) }}
-| b=BOOL { {annot = TBool ; expr = Bool(b) }}
-| t=THIS {{annot  =TVoid ; expr=This }}
-| m=mem {{annot = TVoid ; expr = Get(m)}}
-| o=unop e=expression %prec UNARY_OP {{annot = TVoid ; expr = Unop(o, e)}}
-| e=expression o=binop f=expression { {annot = TVoid ; expr = Binop(o,e,f)} }
+| n=INT { {annot = TInt ; expr = Int(n) ; loc = $loc}}
+| b=BOOL { {annot = TBool ; expr = Bool(b); loc = $loc}}
+| t=THIS { {annot  =TVoid ; expr=This ;   loc = $loc}}
+| m=mem { {annot = TVoid ; expr = Get(m); loc = $loc}}  
+| o=unop e=expression %prec UNARY_OP { {annot = TVoid ; expr = Unop(o, e); loc = $loc}}
+| e=expression o=binop f=expression { {annot = TVoid ; expr = Binop(o,e,f) ; loc = $loc} }
 | LPAR e=expression RPAR { e }
-| NEW i=IDENT {{annot = TClass(i) ; expr =  New(i)}}
-| NEW i=IDENT LPAR l=separated_list(COMA,expression) RPAR {{annot = TClass(i) ; expr = NewCstr(i, l)}}
-| e=expression POINT s=IDENT LPAR l=separated_list(COMA,expression) RPAR {{annot = TVoid ; expr = MethCall(e,s,l)}}
-| e=expression AS t=kawatype {{annot = TVoid ; expr = Unop(TypeCast(t), e)}}
-| e=expression INSTANCEOF t=kawatype {  {annot = TBool ; expr = Unop(InstanceOf(t) , e)}  }
+| NEW i=IDENT { {annot = TClass(i) ; expr =  New(i) ; loc = $loc}}
+| NEW i=IDENT LPAR l=separated_list(COMA,expression) RPAR { {annot = TClass(i) ; expr = NewCstr(i, l); loc = $loc}}
+| e=expression POINT s=IDENT LPAR l=separated_list(COMA,expression) RPAR { {annot = TVoid ; expr = MethCall(e,s,l); loc = $loc}}
+| e=expression AS t=kawatype { {annot = TVoid ; expr = Unop(TypeCast(t), e); loc = $loc}}
+| e=expression INSTANCEOF t=kawatype {  {annot = TBool ; expr = Unop(InstanceOf(t) , e) ; loc = $loc}  }
 ;
 
 %inline unop:
