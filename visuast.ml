@@ -9,7 +9,6 @@ let fresh_id =
     incr counter;
     id
 
-(* Utilitaires pour la génération de nœuds et connexions *)
 let create_node id label typ =
   if typ = "" then Printf.sprintf "  node%d [label=\"%s\"];" id label
   else
@@ -21,7 +20,6 @@ let create_connection ?(label = "") from_id to_id =
   if label = "" then Printf.sprintf "  node%d -> node%d;" from_id to_id
   else Printf.sprintf "  node%d -> node%d [label=\"%s\"];" from_id to_id label
 
-(* Fonction générique pour une expression *)
 let rec expr_to_dot with_id (e : expr) =
   let t = e.annot in
   let ts = typ_to_string t in
@@ -76,8 +74,6 @@ let rec expr_to_dot with_id (e : expr) =
       let op_str = string_of_unop opp in
       let currnode = create_node with_id op_str in
       let argnodes, argcon = create_node_and_connections with_id [ e ] in
-      (* ( currnode :: argnodes,
-      argcon ) *)
       match opp with
       | TypeCast t ->
           let t_id = fresh_id () in
@@ -122,7 +118,6 @@ and mem_to_dot withid (m : Kawa.mem_access) =
       in
       (nodes @ n, connections @ c)
 
-(* Fonction pour une instruction *)
 and inst_to_dot with_id instr =
   let create_node with_id lab = create_node with_id lab "" in
   match instr with
@@ -186,7 +181,6 @@ and inst_to_dot with_id instr =
       let node = create_node with_id "Non traité (instr)" in
       ([ node ], [])
 
-(* Fonction pour une séquence *)
 and seq_to_dot seq withid =
   let rec aux nodes connections prev_id count = function
     | [] -> (nodes, connections)
@@ -202,7 +196,6 @@ and seq_to_dot seq withid =
   in
   aux [] [] withid 1 seq
 
-(* Fonction principale pour un programme *)
 let program_to_dot program output_file =
   let main_id = fresh_id () in
   let main_node = create_node main_id "main" "" in

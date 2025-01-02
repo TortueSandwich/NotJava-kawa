@@ -36,15 +36,31 @@
 %%
 
 program:
-  globals=list(var_decl)
+  globals_var=list(globals_var_decl)
   classes=list(class_def)
   MAIN BEGIN 
   i=list(instruction)
   END EOF
   {
-    let globals = List.flatten globals in
-    { globals; classes; main=i; } 
+    let (globals, globals_init) = 
+      List.fold_left 
+        (fun (acc_globals, acc_instrs) (defs, instrs) -> 
+          (acc_globals @ defs, acc_instrs @ instrs)
+        ) ([], []) globals_var
+    in
+    { globals; classes; main = globals_init @ i }
   }
+;
+
+globals_var_decl:
+| VAR t=kawatype vars=separated_nonempty_list(COMA, IDENT) value=affectation? SEMI { 
+  let defs = List.map (fun var -> (var, t)) vars in
+  let instrs = match value with 
+  | None -> []
+  | Some value -> List.map (fun var -> Set(Var(var), value)) vars in
+  (defs, instrs)
+  
+}
 ;
 
 instruction:
@@ -55,9 +71,8 @@ instruction:
 | RETURN e=expression SEMI {Return(e)}
 | e=expression SEMI {Expr(e)}
 | BEGIN l=list(instruction) END {Scope(l)}
+| x=var_decl { let (a,b,c) = x in Declare(a,b,c) }
 ;
-
-
 
 expression:
 | n=INT { {annot = TInt ; expr = Int(n) }}
@@ -75,8 +90,11 @@ expression:
 ;
 
 var_decl:
-| VAR t=kawatype v=IDENT SEMI {[(v, t)]}
-// | VAR t=kawatype l=separated_nonempty_list(COMA, IDENT) SEMI {List.map (fun x -> (x,t)) l}
+| VAR t=kawatype vars=separated_nonempty_list(COMA, IDENT) value=affectation? SEMI { (vars, t, value) }
+;
+
+affectation:
+| AFFECT e=expression {e}
 ;
 
 class_def: 
@@ -99,12 +117,13 @@ param:
 ;
 
 method_def: 
-| METHOD return=kawatype method_name=IDENT LPAR params=separated_list(COMA,param) RPAR BEGIN locals=list(var_decl) code=list(instruction) END
+| METHOD return=kawatype method_name=IDENT LPAR params=separated_list(COMA,param) RPAR BEGIN 
+// locals=list(var_decl)
+ code=list(instruction) END
 {
-  let locals = List.flatten locals in
-  { method_name; code; params; locals; return;}}
+  (* let locals = List.flatten locals in *)
+  { method_name; code; params; locals=[]; return;}}
 ;
-
 
 %inline mem:
 | s=IDENT {Var(s) }

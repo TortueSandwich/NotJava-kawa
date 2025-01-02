@@ -143,9 +143,10 @@ let () =
       flush stdout;
       let prog = Kawaparser.program Kawalexer.token lb in
       close_in c;
-      let typed_prog = Typechecker.typecheck_prog prog in
-      if !generate_dot then Visuast.main typed_prog;
-      Interpreter.exec_prog typed_prog
+      (* let typed_prog = Typechecker.typecheck_prog prog in *)
+      (* if !generate_dot then Visuast.main typed_prog; *)
+      (* Interpreter.exec_prog typed_prog *)
+      Interpreter.exec_prog prog
     with
     | Kawalexer.Error s ->
         report (lexeme_start_p lb, lexeme_end_p lb);

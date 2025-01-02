@@ -2,6 +2,7 @@ main {
     print(1);
     {
         print(2);
+        var int x = true;
     }
     print(3);
 }

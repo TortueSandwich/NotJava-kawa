@@ -26,7 +26,13 @@ let print_hashtable table =
     table;
   print_endline "--"
 
-(* Gestion des portées avec une pile d'environnements *)
+(** environement pour variables globales *)
+let global_env : (string, value) Hashtbl.t = Hashtbl.create 16
+
+let new_env_stack () : ('a, 'b) Hashtbl.t list =
+  [ Hashtbl.create 16; global_env ]
+
+(** cree un nouveau env (pour un nouveau scope) *)
 let push_env env_stack =
   let new_env = Hashtbl.create 16 in
   new_env :: env_stack
@@ -37,14 +43,37 @@ let pop_env = function
 
 let rec find_in_env env_stack key =
   match env_stack with
-  | [] -> raise (Error ("Variable non définie: " ^ key))
+  | [] ->
+      if Hashtbl.mem global_env key then Hashtbl.find global_env key
+      else raise (Error ("Variable non définie: " ^ key))
   | env :: rest ->
       if Hashtbl.mem env key then Hashtbl.find env key else find_in_env rest key
 
-let set_in_env env_stack key value =
+(** echoue si deja déclaré ! 
+params : env, key, value 
+*)
+let define_in_env env_stack key (value:value) =
   match env_stack with
-  | [] -> raise (Error ("Impossible de définir la variable: " ^ key))
-  | env :: _ -> Hashtbl.replace env key value (* print_hashtable env; *)
+  | [] ->
+      raise (Error ("Aucun environnement pour déclarer la variable: " ^ key))
+  | env :: _ ->
+      if Hashtbl.mem env key then
+        raise (Error ("Variable déjà déclarée dans cet environnement: " ^ key))
+      else Hashtbl.add env key value
+
+let declare_global key value =
+  if Hashtbl.mem global_env key then
+    raise (Error ("Variable globale déjà déclarée: " ^ key))
+  else Hashtbl.add global_env key value
+
+let rec replace_in_env env_stack key value =
+  match env_stack with
+  | [] ->
+      if Hashtbl.mem global_env key then Hashtbl.replace global_env key value
+      else raise (Error ("Variable non définie: " ^ key))
+  | env :: rest ->
+      if Hashtbl.mem env key then Hashtbl.replace env key value
+      else replace_in_env rest key value
 
 (* main attraction *)
 let exec_prog (p : program) : unit =
@@ -52,8 +81,8 @@ let exec_prog (p : program) : unit =
   let check_subtype objective curr =
     check_subtype objective curr find_class_def
   in
-  let env_stack = [ Hashtbl.create 16 ] in
-  List.iter (fun (x, _) -> Hashtbl.add (List.hd env_stack) x Null) p.globals;
+  (* pas de stack a creer *)
+  List.iter (fun (x, _) -> declare_global x Null) p.globals;
   let findclass class_name =
     List.find (fun x -> x.class_name = class_name) p.classes
   in
@@ -82,13 +111,14 @@ let exec_prog (p : program) : unit =
           )
     in
     let method_def = findmethod defclass in
-    let method_env = Hashtbl.create 16 in
-    Hashtbl.add method_env "this" (VObj this);
+    let method_env = new_env_stack () in
+    (* ajoutarg et this dans env *)
+    define_in_env method_env "this" (VObj this);
     List.iter2
-      (fun (param_name, _) arg -> Hashtbl.add method_env param_name arg)
+      (fun (param_name, _) arg -> define_in_env method_env param_name arg)
       method_def.params args;
     try
-      exec_seq method_def.code [ method_env ];
+      exec_seq method_def.code method_env;
       Null
     with Return v -> v
   and exec_seq s (env_stack : (string, value) Hashtbl.t list) =
@@ -163,20 +193,28 @@ let exec_prog (p : program) : unit =
       | Print e -> Printf.printf "%d\n" (evali e)
       | If (cond, ifseq, elseseq) ->
           exec_seq (if evalb cond then ifseq else elseseq) env_stack
-      | While (cond, iseq) ->
+      | While (cond, iseq) as w ->
           if evalb cond then (
             exec_seq iseq env_stack;
-            exec (While (cond, iseq)))
+            exec w)
       | Set (m, e) -> (
           match m with
-          | Var name -> set_in_env env_stack name (eval e)
+          | Var name -> replace_in_env env_stack name (eval e)
           | Field (obj, field_name) ->
               let o = evalo obj in
               Hashtbl.replace o.fields field_name (eval e))
       | Return e -> raise (Return (eval e))
       | Expr e -> ignore (eval e)
       | Scope s -> exec_seq s env_stack
+      | Declare (s, _, None) ->
+          let f x = define_in_env env_stack x Null in
+          List.iter f s
+      | Declare (s, _, Some v) ->
+          let v = eval v in
+          let f x = define_in_env env_stack x v in
+          List.iter f s
     and exec_seq s env_stack =
+      (* nouvelle portée *)
       let env_stack = push_env env_stack in
       List.iter (fun instr -> exec instr) s;
       let _ = pop_env env_stack in

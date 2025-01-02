@@ -73,6 +73,7 @@ type instr =
   (* Expression utilisée comme instruction *)
   | Expr of expr
   | Scope of seq
+  | Declare of string list * typ * expr option
 
 and seq = instr list
 
