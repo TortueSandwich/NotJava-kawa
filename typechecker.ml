@@ -64,7 +64,7 @@ let objname_of_typ = function TClass clsname -> clsname | _ -> assert false
 let keys_of_map (map: 'a Env.t) : string list =
   Env.fold (fun key _ acc -> key :: acc) map []
 
-let typecheck_prog (p:program) f: program =
+let typecheck_prog (p:program) : program =
   let tenv = Env.empty in
   let tenv = add_env p.globals tenv in
  
@@ -195,6 +195,7 @@ let typecheck_prog (p:program) f: program =
                     check_eq_type typed_e.annot TVoid;
                     {instr = Expr e; loc = i.loc}
     with TypeError s -> let line  = (fst(i.loc)).pos_lnum in 
+                        let f = (fst(i.loc)).pos_fname in
        error (s ^ "\nAt line " ^ string_of_int line ^"::   " ^ (get_string_from_file f i.loc))
   and check_seq s ret tenv : seq = List.map (fun i -> check_instr i ret tenv) s in
   let typed_seq = check_seq p.main TVoid tenv in 

@@ -66,7 +66,7 @@ instruction:
 
 check_semi:
 | SEMI { () }
-| error { raise (ParserError "Missing semicolon") }
+| error { raise (ParserError ("Missing semicolon")) }
 ;
 
 

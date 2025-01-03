@@ -145,7 +145,13 @@ let extract_parentheses_content s =
     let start_idx = String.index s '(' in
     let end_idx = String.index s ')' in
     if start_idx < end_idx then
-      String.sub s (start_idx + 1) (end_idx - start_idx - 1)
+      let content = String.sub s (start_idx + 1) (end_idx - start_idx - 1) in
+      let content = 
+        if String.length content >= 2 && content.[0] = '"' && content.[String.length content - 1] = '"' then
+          String.sub content 1 (String.length content - 2)
+        else content
+      in
+      content
     else
       raise (Invalid_argument "Invalid string format")
   with Not_found -> raise (Invalid_argument "Parentheses not found")
@@ -178,6 +184,7 @@ let () =
     in
     let c = open_in f in
     let lb = Lexing.from_channel c in
+    Lexing.set_filename lb f; 
     if !show_source then (
       Printf.printf "\027[2mSource code of %s :\027[0m\n" f;
       lex_and_print_tokens (open_in f));
@@ -188,7 +195,7 @@ let () =
       flush stdout;
       let prog = Kawaparser.program Kawalexer.token lb in
       close_in c;
-      let typed_prog = Typechecker.typecheck_prog prog f in 
+      let typed_prog = Typechecker.typecheck_prog prog in 
       if !generate_dot then Visuast.main typed_prog;
       Interpreter.exec_prog typed_prog 
       
@@ -214,6 +221,7 @@ let () =
         exit 1
     | e ->
         eprintf "%s\n@." (custom_printexc_to_string e);
+        report (lexeme_start_p lb, lexeme_end_p lb);
         (* lex_and_print_tokens (open_in f); *)
         exit 2
   in
