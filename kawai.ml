@@ -174,7 +174,7 @@ let () =
       eprintf "\027[91mEnvironment error:\027[0m %s@." (Stack_env.string_of_env_error e);
       exit 1
     | e ->
-        eprintf "%s\n@." (custom_printexc_to_string e);
+        (* eprintf "%s\n@." (custom_printexc_to_string e); *)
         (* lex_and_print_tokens (open_in f); *)
         exit 2
   in

@@ -20,7 +20,14 @@ module MakeEnv (V : ValueType) = struct
   type env = (string, value) Hashtbl.t
   type env_stack = env list
   
-  
+  let get_all_names (env_stack : env_stack) : string list =
+    let names_set = Hashtbl.create 16 in
+    List.iter
+      (fun env ->
+        Hashtbl.iter (fun key _value -> Hashtbl.replace names_set key ()) env)
+      env_stack;
+    Hashtbl.fold (fun key _acc lst -> key :: lst) names_set []
+
   (* Référence pour l'environnement global unique *)
   let global_env_ref = ref (Hashtbl.create 16)
 

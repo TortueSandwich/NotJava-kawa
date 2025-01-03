@@ -156,7 +156,7 @@ let exec_prog (p : program) : unit =
       | Print e -> Printf.printf "%d\n" (evali e env_stack)
       | If (cond, ifseq, elseseq) ->
           exec_seq (if evalb cond env_stack then ifseq else elseseq) env_stack
-      | While (cond, iseq) as w ->
+      | While (cond, iseq) ->
           if evalb cond env_stack then (
             exec_seq iseq env_stack;
             exec ({instr = While (cond, iseq); loc = i.loc}) env_stack)
