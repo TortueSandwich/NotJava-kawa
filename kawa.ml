@@ -12,7 +12,7 @@ let typ_of_string = function
   | "void" -> TVoid
   | classname -> TClass classname
 
-let typ_to_string = function
+let string_of_typ = function
   | TVoid -> "void"
   | TInt -> "int"
   | TBool -> "bool"
@@ -115,8 +115,8 @@ type program = {
 
 let string_of_unop unop = match unop with 
   Opp -> "Opp" | Not -> "Not" 
-  | TypeCast (newType) -> "TypeCast("^( typ_to_string newType) ^ ")"
-  | InstanceOf (t) -> "InstanceOf ("^( typ_to_string t) ^ ")"
+  | TypeCast (newType) -> "TypeCast("^( string_of_typ newType) ^ ")"
+  | InstanceOf (t) -> "InstanceOf ("^( string_of_typ t) ^ ")"
 
 let string_of_biop (biop : binop) : string =
   match biop with
@@ -144,14 +144,24 @@ let rec string_of_expr (e : expr) : string =
   | Binop (biop, e1, e2) ->
       fmt "Biop(%s, %s, %s)" (string_of_biop biop) (string_of_expr e1)
         (string_of_expr e2)
-  | Get m -> "Get(" ^ (string_of_meme m) ^")"
+  | Get m -> "Get(" ^ (string_of_mem m) ^")"
   | This -> "This"
   | New c -> fmt "%s" c
   | NewCstr (c, _) -> fmt "%s" c
   | MethCall (e1, c, el) -> fmt "%s" c
-and string_of_meme = function
+and string_of_mem = function
     | Var name -> name
     | Field (obj, field_name) -> (
       (string_of_expr obj) ^ "." ^ field_name
     )
+
+let string_of_instr = function
+  | Print e -> "print"
+  | Set (m,v) -> "set"
+  | If (c,i,e) -> "if"
+  | While (c,s)-> "while"
+  | Return e -> "return"
+  | Expr e -> "expr"
+  | Scope s -> "scope"
+  | Declare (v,t,value) -> "declare " ^ (List.fold_left (fun acc x -> acc ^ " "^ x) "" v)
 

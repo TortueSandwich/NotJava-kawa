@@ -22,7 +22,7 @@ let create_connection ?(label = "") from_id to_id =
 
 let rec expr_to_dot with_id (e : expr) =
   let t = e.annot in
-  let ts = typ_to_string t in
+  let ts = string_of_typ t in
   let create_node with_id lab = create_node with_id lab ts in
   match e.expr with
   | Int i -> ([ create_node with_id (string_of_int i) ], [])
@@ -77,7 +77,7 @@ let rec expr_to_dot with_id (e : expr) =
       match opp with
       | TypeCast t ->
           let t_id = fresh_id () in
-          let t_node = create_node t_id (typ_to_string t) in
+          let t_node = create_node t_id (string_of_typ t) in
           let t_con = create_connection with_id t_id in
           (currnode :: t_node :: argnodes, t_con :: argcon)
       | _ -> (currnode :: argnodes, argcon))
@@ -177,9 +177,24 @@ and inst_to_dot with_id instr =
       let e_id = fresh_id () in
       let enode, e_con = typed_expr_to_dot e_id e in
       ([ currnode ], e_con)
-  | _ ->
+  | Expr e -> 
+    let currnode = create_node with_id "Expr as instr" in
+    let e_id = fresh_id () in
+    let connec = create_connection with_id e_id ~label:"expr" in
+    let (e_node, e_connec)= expr_to_dot e_id e in
+    (currnode :: e_node, connec:: e_connec)
+
+  | Scope instrs -> 
+    let currnode = create_node with_id "Scope" in
+    let new_id = fresh_id () in
+    let s_nodes, s_connections = seq_to_dot instrs new_id in
+    let conec = create_connection with_id new_id ~label:"instrs" in
+    ( (currnode :: s_nodes), conec :: s_connections )
+  | Declare (vars, t, value) -> ( [], [])
+
+  (* | _ ->
       let node = create_node with_id "Non traité (instr)" in
-      ([ node ], [])
+      ([ node ], []) *)
 
 and seq_to_dot seq withid =
   let rec aux nodes connections prev_id count = function

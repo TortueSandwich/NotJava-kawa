@@ -1,8 +1,9 @@
 main {
     print(1);
     {
-        print(2);
-        var int x = true;
+        var int x = 2;
+        print(x);
     }
+    print(x);
     print(3);
 }

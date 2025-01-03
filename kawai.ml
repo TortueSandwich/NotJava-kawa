@@ -115,6 +115,8 @@ let lex_and_print_tokens c =
     print_endline ""
   with End_of_file -> ()
 
+
+
 let () =
   let exit code =
     if !input_files = [] then
@@ -143,10 +145,10 @@ let () =
       flush stdout;
       let prog = Kawaparser.program Kawalexer.token lb in
       close_in c;
-      (* let typed_prog = Typechecker.typecheck_prog prog in *)
-      (* if !generate_dot then Visuast.main typed_prog; *)
-      (* Interpreter.exec_prog typed_prog *)
-      Interpreter.exec_prog prog
+      let typed_prog = Typechecker.typecheck_prog prog in
+      if !generate_dot then Visuast.main typed_prog;
+      Interpreter.exec_prog typed_prog
+      (* Interpreter.exec_prog prog *)
     with
     | Kawalexer.Error s ->
         report (lexeme_start_p lb, lexeme_end_p lb);
@@ -165,6 +167,9 @@ let () =
     | Typechecker.Error s ->
         eprintf "\027[91mType error: \027[0m%s@." s;
         exit 1
+    | Stack_env.EnvError e ->
+      eprintf "\027[91mEnvironment error:\027[0m %s@." (Stack_env.string_of_env_error e);
+      exit 1
     | e ->
         eprintf "\027[91mAnomaly:\027[0m %s\n@." (Printexc.to_string e);
         (* lex_and_print_tokens (open_in f); *)

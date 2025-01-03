@@ -136,10 +136,8 @@ param:
 
 method_def: 
 | METHOD return=kawatype method_name=IDENT LPAR params=separated_list(COMA,param) rpar_handled BEGIN 
-// locals=list(var_decl)
  code=list(instruction) end_handled
 {
-  (* let locals = List.flatten locals in *)
   { method_name; code; params; locals=[]; return;}}
 ;
 
