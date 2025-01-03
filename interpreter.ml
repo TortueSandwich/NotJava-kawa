@@ -89,9 +89,11 @@ let exec_prog (p : program) : unit =
       | Opp -> VInt (-evali e env_stack)
       | Not -> VBool (not (evalb e env_stack))
       | TypeCast newType ->
-          let v_e = eval e env_stack in
-          check_subtype newType (typ_of_value v_e);
-          v_e
+          (let v_e = eval e env_stack in
+          try check_subtype newType (typ_of_value v_e); v_e
+          with Typechecker.TypeError s -> (let f = (fst(e.loc)).pos_fname in
+                            Typechecker.error (s ^ (Tools.report_bug e.loc f))))
+          
       | InstanceOf t -> (
           let v_e = eval e env_stack in
           try

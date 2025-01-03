@@ -144,7 +144,7 @@ let custom_printexc_to_string exn =
 let () =
   let exit code =
     if !input_files = [] then
-      Printf.printf "\027[2mRe-execute using\n./kawai.exe %s %s\027[0m\n"
+      eprintf "\027[2mRe-execute using\n./kawai.exe %s %s\027[0m\n"
         (List.nth files 0)
         (if !show_source then "-s" else "");
     exit code

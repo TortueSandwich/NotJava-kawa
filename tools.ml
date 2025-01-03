@@ -1,4 +1,6 @@
 open Lexing
+open Printf
+
 let min3 a b c = min a (min b c)
 
 let levenshtein_distance s1 s2 =
@@ -53,6 +55,25 @@ let get_string_from_file filename (start_pos, end_pos) =
   with e ->
     close_in_noerr ic;
     raise e
+
+let get_line filename line_num =
+  let ic = open_in filename in
+  let rec loop n =
+    if n = 0 then input_line ic
+    else (ignore (input_line ic); loop (n - 1))
+  in
+  let result = loop (line_num - 1) in
+  close_in ic;
+  result
+
+let report_bug (pos: Lexing.position * Lexing.position) (f: string) =
+  let b, e = pos in
+  let l = b.pos_lnum in
+  let fc = b.pos_cnum - b.pos_bol + 1 in
+  let lc = e.pos_cnum - b.pos_bol + 1 in
+  let line_content = get_line f l in
+  let error_indicator = String.make (fc - 1) ' ' ^ String.make (lc - fc + 1) '^' in
+  sprintf "\nFile \"%s\", line %d, characters %d-%d:\n%s\n%s" f l fc lc line_content error_indicator
 
 
 

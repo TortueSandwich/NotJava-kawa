@@ -237,9 +237,8 @@ let typecheck_prog (p : program) : program =
         check_subtype t typedval.annot;
         {instr = Declare (varnames, t, Some typedval); loc=i.loc}
 
-      with TypeError s -> let line  = (fst(i.loc)).pos_lnum in 
-                          let f = (fst(i.loc)).pos_fname in
-      error (s ^ "\nAt line " ^ string_of_int line ^"::   " ^ (get_string_from_file f i.loc))
+      with TypeError s -> let f = (fst(i.loc)).pos_fname in
+      error (s ^ (report_bug i.loc f) )
 
       
   and check_seq s ret tenv : seq =
