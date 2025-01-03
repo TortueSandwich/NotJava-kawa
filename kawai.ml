@@ -10,6 +10,7 @@
 
 open Format
 open Lexing
+
 open Arg
 
 (* lis les parametres donnée à l'exe*)
@@ -113,7 +114,8 @@ let lex_and_print_tokens c =
   try
     loop 1 0;
     print_endline ""
-  with End_of_file -> ()
+  with
+  | End_of_file -> ()
 
 
 
@@ -145,7 +147,7 @@ let () =
       flush stdout;
       let prog = Kawaparser.program Kawalexer.token lb in
       close_in c;
-      let typed_prog = Typechecker.typecheck_prog prog in
+      let typed_prog = Typechecker.typecheck_prog prog f in
       if !generate_dot then Visuast.main typed_prog;
       Interpreter.exec_prog typed_prog
       (* Interpreter.exec_prog prog *)
@@ -156,6 +158,7 @@ let () =
         eprintf "\027[0m";
         exit 1
     | Kawaparser.Error ->
+        (*A modifier pour enlever les éléments liées à menhir*)
         report (lexeme_start_p lb, lexeme_end_p lb);
         eprintf "\027[91msyntax error\027[0m (parser)@.";
         eprintf "\027[91msyntax error:\027[0m Unexpected token: %s\n"
@@ -164,14 +167,14 @@ let () =
     | Interpreter.Error s ->
         eprintf "\027[91minterpreter error: \027[0m%s@." s;
         exit 1
-    | Typechecker.Error s ->
+    | Typechecker.TypeError s -> 
         eprintf "\027[91mType error: \027[0m%s@." s;
         exit 1
     | Stack_env.EnvError e ->
       eprintf "\027[91mEnvironment error:\027[0m %s@." (Stack_env.string_of_env_error e);
       exit 1
     | e ->
-        eprintf "\027[91mAnomaly:\027[0m %s\n@." (Printexc.to_string e);
+        eprintf "%s\n@." (custom_printexc_to_string e);
         (* lex_and_print_tokens (open_in f); *)
         exit 2
   in

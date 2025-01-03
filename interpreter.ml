@@ -152,14 +152,14 @@ let exec_prog (p : program) : unit =
 
     let rec exec (i : instr) env_stack : unit =
       (* print_endline ("execution de " ^ (string_of_instr i)); *)
-      match i with
+      match i.instr with
       | Print e -> Printf.printf "%d\n" (evali e env_stack)
       | If (cond, ifseq, elseseq) ->
           exec_seq (if evalb cond env_stack then ifseq else elseseq) env_stack
       | While (cond, iseq) as w ->
           if evalb cond env_stack then (
             exec_seq iseq env_stack;
-            exec w env_stack)
+            exec ({instr = While (cond, iseq); loc = i.loc}) env_stack)
       | Set (m, e) -> (
           match m with
           | Var name -> Env.replace env_stack name (eval e env_stack)

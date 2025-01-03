@@ -209,7 +209,7 @@ and seq_to_dot seq withid =
           (connections @ instr_connections @ [ connection ])
           curr_id (count + 1) tail
   in
-  aux [] [] withid 1 seq
+  aux [] [] withid 1 (List.map (fun i -> i.instr) seq)
 
 let program_to_dot program output_file =
   let main_id = fresh_id () in

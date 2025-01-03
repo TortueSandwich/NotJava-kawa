@@ -37,7 +37,7 @@ type binop =
   | Or
 
 (* Expressions *)
-type expr = {annot : typ ; expr : expr_}
+type expr = {annot : typ ; expr : expr_; loc : Lexing.position * Lexing.position}
 and expr_ = 
   (* Base arithmétique *)
   | Int of int
@@ -60,7 +60,8 @@ and mem_access =
   | Field of expr (* objet *) * string (* nom d'un attribut *)
 
 (* Instructions *)
-type instr =
+type instr = { instr : instr_ ;  loc : Lexing.position * Lexing.position}
+and instr_ =
   (* Affichage d'un entier *)
   | Print of expr
   (* Écriture dans une variable ou un attribut *)

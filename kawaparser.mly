@@ -37,6 +37,8 @@
 
 %%
 
+
+
 program:
   globals_var=list(globals_var_decl)
   classes=list(class_def)
@@ -66,14 +68,14 @@ globals_var_decl:
 ;
 
 instruction:
-| PRINT LPAR e=expression rpar_handled semi_handled {Print(e)}
-| m=mem AFFECT e=expression semi_handled {Set(m, e)}
-| IF LPAR e=expression rpar_handled BEGIN iif=list(instruction) end_handled ELSE BEGIN ielse=list(instruction) end_handled {If(e, iif, ielse)}
-| WHILE LPAR e=expression rpar_handled BEGIN i=list(instruction) end_handled {While(e,i)}
-| RETURN e=expression semi_handled {Return(e)}
-| e=expression semi_handled {Expr(e)}
-| BEGIN l=list(instruction) end_handled {Scope(l)}
-| x=var_decl { let (a,b,c) = x in Declare(a,b,c) }
+| PRINT LPAR e=expression rpar_handled semi_handled { {instr = Print(e); loc = $loc }}
+| m=mem AFFECT e=expression semi_handled {{instr = Set(m, e); loc = $loc }
+| IF LPAR e=expression rpar_handled BEGIN iif=list(instruction) end_handled ELSE BEGIN ielse=list(instruction) end_handled {{instr = If(e, iif, ielse); loc = $loc }}
+| WHILE LPAR e=expression rpar_handled BEGIN i=list(instruction) end_handled {{instr = While(e,i); loc = $loc }}
+| RETURN e=expression semi_handled {{instr = Return(e); loc = $loc }}
+| e=expression semi_handled {{instr = Expr(e); loc = $loc }}
+| BEGIN l=list(instruction) end_handled {{instr = Scope(l); loc = $loc }}
+| x=var_decl { let (a,b,c) = x in {instr = Declare(a,b,c); loc = $loc  }}
 ;
 
 semi_handled : 
@@ -91,20 +93,19 @@ rpar_handled :
 | RPAR { () }
 
 
-
 expression:
-| n=INT { {annot = TInt ; expr = Int(n) }}
-| b=BOOL { {annot = TBool ; expr = Bool(b) }}
+| n=INT { {annot = TInt ; expr = Int(n) ; loc = $loc }}
+| b=BOOL { {annot = TBool ; expr = Bool(b) ; loc = $loc }}
 | t=THIS {{annot  =TVoid ; expr=This }}
 | m=mem {{annot = TVoid ; expr = Get(m)}}
-| o=unop e=expression %prec UNARY_OP {{annot = TVoid ; expr = Unop(o, e)}}
-| e=expression o=binop f=expression { {annot = TVoid ; expr = Binop(o,e,f)} }
+| o=unop e=expression %prec UNARY_OP {{annot = TVoid ; expr = Unop(o, e) ; loc = $loc}}
+| e=expression o=binop f=expression { {annot = TVoid ; expr = Binop(o,e,f) ; loc = $loc} }
 | LPAR e=expression rpar_handled { e }
 | NEW i=IDENT {{annot = TClass(i) ; expr =  New(i)}}
-| NEW i=IDENT LPAR l=separated_list(COMA,expression) rpar_handled {{annot = TClass(i) ; expr = NewCstr(i, l)}}
-| e=expression POINT s=IDENT LPAR l=separated_list(COMA,expression) rpar_handled {{annot = TVoid ; expr = MethCall(e,s,l)}}
-| e=expression AS t=kawatype {{annot = TVoid ; expr = Unop(TypeCast(t), e)}}
-| e=expression INSTANCEOF t=kawatype {  {annot = TBool ; expr = Unop(InstanceOf(t) , e)}  }
+| NEW i=IDENT LPAR l=separated_list(COMA,expression) rpar_handled {{annot = TClass(i) ; expr = NewCstr(i, l) ; loc = $loc}}
+| e=expression POINT s=IDENT LPAR l=separated_list(COMA,expression) rpar_handled {{annot = TVoid ; expr = MethCall(e,s,l) ; loc = $loc}}
+| e=expression AS t=kawatype {{annot = TVoid ; expr = Unop(TypeCast(t), e) ; loc = $loc}}
+| e=expression INSTANCEOF t=kawatype {  {annot = TBool ; expr = Unop(InstanceOf(t) , e) ; loc = $loc}  }
 ;
 
 var_decl:

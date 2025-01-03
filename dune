@@ -3,12 +3,12 @@
 
 (menhir
  (modules kawaparser)
- (flags --explain --dump -v)
+ (flags )
  (infer true))
 
 (executable
  (name kawai)
- (modules kawa kawalexer kawaparser kawai interpreter typechecker visuast stack_env)
+ (modules tools kawa kawalexer kawaparser kawai interpreter typechecker visuast stack_env)
  (promote (until-clean))
  (flags ()))
 
