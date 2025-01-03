@@ -72,7 +72,7 @@ let objname_of_typ = function TClass clsname -> clsname | _ -> assert false
 let keys_of_map map : string list =
   Hashtbl.fold (fun key _ acc -> key :: acc) map []
 
-let typecheck_prog (p : program) f: program =
+let typecheck_prog (p : program) : program =
   List.iter (fun (x, t) -> Env.define_globally x t) p.globals;
 
   let find_class_def class_name = find_class_def class_name p.classes in
@@ -188,7 +188,6 @@ let typecheck_prog (p : program) f: program =
   and check_instr i ret stack_env : instr =
     try
     match i.instr with
-    match i.instr with
     | Print e ->
         let typed_e = check_expr e stack_env in
         check_eq_type TInt typed_e.annot;
@@ -239,6 +238,7 @@ let typecheck_prog (p : program) f: program =
         {instr = Declare (varnames, t, Some typedval); loc=i.loc}
 
       with TypeError s -> let line  = (fst(i.loc)).pos_lnum in 
+                          let f = (fst(i.loc)).pos_fname in
       error (s ^ "\nAt line " ^ string_of_int line ^"::   " ^ (get_string_from_file f i.loc))
 
       
