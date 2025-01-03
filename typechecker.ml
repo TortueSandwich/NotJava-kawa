@@ -204,7 +204,7 @@ let typecheck_prog (p : program) : program =
         {instr=While (typed_cond, check_seq iseq TVoid stack_env);loc=i.loc}
     | Set (m, e) ->
         let typed_e = check_expr e stack_env in
-        check_subtype typed_e.annot (type_mem_access m stack_env);
+        check_subtype (type_mem_access m stack_env) typed_e.annot ;
         {instr=Set (m, typed_e); loc= i.loc}
     | Return e ->
         let typed_e = check_expr e stack_env in

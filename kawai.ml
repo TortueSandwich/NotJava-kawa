@@ -117,7 +117,29 @@ let lex_and_print_tokens c =
   with
   | End_of_file -> ()
 
-
+let extract_parentheses_content s =
+    try
+      let start_idx = String.index s '(' in
+      let end_idx = String.index s ')' in
+      if start_idx < end_idx then
+        let content = String.sub s (start_idx + 1) (end_idx - start_idx - 1) in
+        let content = 
+          if String.length content >= 2 && content.[0] = '"' && content.[String.length content - 1] = '"' then
+            String.sub content 1 (String.length content - 2)
+          else content
+        in
+        content
+      else
+        raise (Invalid_argument "Invalid string format")
+    with Not_found -> raise (Invalid_argument "Parentheses not found")
+  
+let custom_printexc_to_string exn =
+    let original_output = Printexc.to_string exn in
+    let extracted_content = 
+      try extract_parentheses_content original_output 
+      with Invalid_argument _ -> original_output
+    in
+    "\027[91m SyntaxError:\027[0m " ^ extracted_content
 
 let () =
   let exit code =
@@ -175,7 +197,8 @@ let () =
       eprintf "\027[91mEnvironment error:\027[0m %s@." (Stack_env.string_of_env_error e);
       exit 1
     | e ->
-        (* eprintf "%s\n@." (custom_printexc_to_string e); *)
+        eprintf "%s\n@." (custom_printexc_to_string e); 
+        report (lexeme_start_p lb, lexeme_end_p lb);
         (* lex_and_print_tokens (open_in f); *)
         exit 2
   in
