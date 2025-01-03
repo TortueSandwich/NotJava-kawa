@@ -91,7 +91,7 @@ let exec_prog (p : program) : unit =
     and evalunop unop (e : expr) = match unop with 
       | Opp -> VInt (-evali e) 
       | Not -> VBool (not (evalb e)) 
-      | TypeCast (newType) -> (
+      | TypeCast (newType) -> (    
         let v_e = eval e in
         check_subtype newType (typ_of_value v_e);
         v_e)

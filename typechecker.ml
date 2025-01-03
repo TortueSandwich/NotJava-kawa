@@ -88,11 +88,12 @@ let typecheck_prog (p:program) f: program =
             (try 
               check_subtype newType typed_e.annot ; {annot = newType ; expr = typed_e.expr; loc = e.loc}
             with
-            | _ ->  (try check_subtype typed_e.annot newType ;{annot = newType ; expr = typed_e.expr; loc = e.loc}
+            | _ ->  (try check_subtype typed_e.annot newType ;{annot = newType ; expr = Unop(u, typed_e); loc = e.loc} (*typecast vers le bas, à vérifier à l'exec*)
                     with TypeError s -> error ("Impossible to typecast, "^s)
                       )
             )
-        | InstanceOf (_) -> {annot = TBool ; expr = Unop(u, typed_e); loc = e.loc}
+        | InstanceOf (t) -> if t = typed_e.annot then {annot = TBool ; expr = Bool(true); loc = e.loc}
+                            else {annot = TBool ; expr = Unop(u, typed_e); loc = e.loc}
     )
     | Binop (u, e1, e2) -> (
         let typed_e1 = check_expr e1 tenv in
