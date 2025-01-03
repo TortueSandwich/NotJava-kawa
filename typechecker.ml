@@ -50,7 +50,7 @@ let check_subtype objective curr (find_class_def: string -> class_def)=
           aux objective (TClass parentclsdef.class_name) find_class_def
       | None -> error ("No parent class found for " ^ name)
       end
-  | _ -> error ("Cannot check subtype for primitive type: " ^ (string_of_typ curr))
+  | _ -> error ("Cannot check subtype for primitive type: " ^ (Kawa.string_of_typ curr))
   in
   try (aux objective curr find_class_def)
   with TypeError s -> error (string_of_typ(curr) ^" is not a subtype of "^string_of_typ(objective) ^ ", " ^ s) 
@@ -127,8 +127,7 @@ let typecheck_prog (p : program) f: program =
     | This -> begin 
         try
           let c = Env.find env_stack "this" in
-        (* TClass (c.class_name) *)
-        {annot = c ; expr = e.expr ; loc = e.loc}
+          {annot = c ; expr = e.expr ; loc = e.loc}
         with Not_found -> error ("Class not found: " ^ "this")
     end
 
@@ -161,13 +160,15 @@ let typecheck_prog (p : program) f: program =
   and type_mem_access m stack_env : typ =
     match m with
     | Var name -> begin
-      try Env.find stack_env name with
-        | _ -> (match stack_env with
-          [] -> error ("No variable is declared in this scope.")
-          | env::_ -> let closest = closest_string name (keys_of_map env) in 
-          error ("Undeclared variable: " ^ name ^ (if closest = None then ""
-          else ", did you mean " ^ (Option.get closest) ^ " ?\n"))
-        )
+      try 
+        Env.find stack_env name 
+      with
+        | _ -> (
+          let closest = closest_string name (Env.get_all_names stack_env) in 
+          error ("Undeclared variable: " ^ name ^ (if closest <> (Some("")) then
+            ", did you mean " ^ (Option.get closest) ^ " ?\n" else ""
+            )
+        ))
         end
     | Field (obj, field_name) ->
         let cls_name = objname_of_typ (check_expr obj stack_env).annot in
@@ -187,25 +188,25 @@ let typecheck_prog (p : program) f: program =
   and check_instr i ret stack_env : instr =
     try
     match i.instr with
+    match i.instr with
     | Print e ->
         let typed_e = check_expr e stack_env in
         check_eq_type TInt typed_e.annot;
-        {instr = Print typed_e ; loc = i.loc}
+        {instr=Print typed_e; loc= i.loc}
     | If (cond, ifseq, elseseq) ->
         let typed_cond = check_expr cond stack_env in
         check_eq_type TBool typed_cond.annot;
-        {instr = If
-          ( typed_cond,
+        {instr=If( typed_cond,
             check_seq ifseq TVoid stack_env,
-            check_seq elseseq TVoid stack_env ) ; loc = i.loc}
+            check_seq elseseq TVoid stack_env ); loc=i.loc}
     | While (cond, iseq) ->
         let typed_cond = check_expr cond stack_env in
         check_eq_type TBool typed_cond.annot;
-        {instr = While (typed_cond, check_seq iseq TVoid stack_env) ; loc= i.loc}
+        {instr=While (typed_cond, check_seq iseq TVoid stack_env);loc=i.loc}
     | Set (m, e) ->
         let typed_e = check_expr e stack_env in
         check_subtype typed_e.annot (type_mem_access m stack_env);
-        {instr = Set (m, typed_e) ; loc = i.loc}
+        {instr=Set (m, typed_e); loc= i.loc}
     | Return e ->
         let typed_e = check_expr e stack_env in
         check_eq_type typed_e.annot ret;
@@ -247,24 +248,35 @@ let typecheck_prog (p : program) f: program =
 
   let typed_seq = check_seq p.main TVoid (Env.new_env_stack ()) in
 
-  let typed_classes = 
-    List.map (
-    fun c -> 
-    let tenv = Env.empty in
-    let tenv = add_env c.attributes tenv in
-    let tenv = add_env [("this", TClass c.class_name)] tenv in
-    {
-      class_name = c.class_name;
-      attributes = c.attributes;
-      methods = 
-    (List.map (fun m ->
-      let tenv = add_env m.locals tenv in
-      let tenv = add_env m.params tenv in
-      {method_name = m.method_name ; code = check_seq (m.code) m.return tenv; params = m.params ; locals = m.locals ; return = m.return}) 
-      c.methods);
-      parent = c.parent
-    })
-    p.classes 
+  let typed_classes =
+    let typed_one_class c =
+      let global_env = Env.new_env_stack () in
+      let class_stack_env = Env.new_env global_env  in
+      List.iter
+        (fun (x, t) -> Env.define_locally class_stack_env x t)
+        c.attributes;
+      Env.define_locally class_stack_env "this" (TClass c.class_name);
+      let typed_method m =
+        let method_stack = Env.new_env class_stack_env in
+        List.iter (fun (x, t) -> Env.define_locally method_stack x t) m.locals;
+        List.iter (fun (x, t) -> Env.define_locally method_stack x t) m.params;
+        {
+          method_name = m.method_name;
+          code = check_seq m.code m.return method_stack;
+          params = m.params;
+          locals = m.locals;
+          return = m.return;
+        } 
+      in
+
+      {
+        class_name = c.class_name;
+        attributes = c.attributes;
+        methods = List.map typed_method c.methods;
+        parent = c.parent;
+      }
+    in
+    List.map typed_one_class p.classes
   in
 
   { classes = typed_classes; globals = p.globals; main = typed_seq }
