@@ -3,6 +3,9 @@
   open Kawaparser
 
   exception Error of string
+
+  let last_lexbuf= ref ""
+
   let keyword_or_ident =
     let h = Hashtbl.create 17 in
     List.iter (fun (s, k) -> Hashtbl.add h s k)
@@ -99,42 +102,42 @@ let alpha = ['a'-'z' 'A'-'Z']
 let ident = ['a'-'z' '_'] (alpha | '_' | digit)*
 
 rule token = parse
-  | ['\n']            { new_line lexbuf; token lexbuf }
-  | [' ' '\t' '\r']+  { token lexbuf }
+  | ['\n']            {  new_line lexbuf; token lexbuf }
+  | [' ' '\t' '\r']+  {  token lexbuf }
 
-  | "//" [^ '\n']* "\n"  { new_line lexbuf; token lexbuf }
-  | "/*"                 { comment lexbuf; token lexbuf }
+  | "//" [^ '\n']* "\n"  {  new_line lexbuf; token lexbuf }
+  | "/*"                 {  comment lexbuf; token lexbuf }
 
-  | number as n  { INT(int_of_string n) }
-  | ident as id  { keyword_or_ident id }
+  | number as n  {  INT(int_of_string n) }
+  | ident as id  {  keyword_or_ident id }
 
-  | ";"  { SEMI }
-  | "("  { LPAR }
-  | ")"  { RPAR }
-  | "{"  { BEGIN }
-  | "}"  { END }
+  | ";"  {  SEMI }
+  | "("  {  LPAR }
+  | ")"  {  RPAR }
+  | "{"  {  BEGIN }
+  | "}"  {  END }
 
-  | "+"  { PLUS }
-  | "-"  { MINUS }
-  | "*"  { TIMES }
-  | "/"  { DIV }
-  | "%"  { MOD }
-  | "==" { EQ }
-  | "=" { AFFECT }
-  | "!=" { NEQ }
+  | "+"  {  PLUS }
+  | "-"  {  MINUS }
+  | "*"  {  TIMES }
+  | "/"  {  DIV }
+  | "%"  {  MOD }
+  | "==" {  EQ }
+  | "=" {  AFFECT }
+  | "!=" {  NEQ }
 
-  | "<" { LT }
-  | "<=" { LEQ }
-  | ">" { GT }
-  | ">=" { GEQ }
-  | "&&" { AND }
-  | "||" { OR }
-  | "!" { EXCLAMATION }
+  | "<" {  LT }
+  | "<=" {  LEQ }
+  | ">" {  GT }
+  | ">=" {  GEQ }
+  | "&&" {  AND }
+  | "||" {  OR }
+  | "!" {  EXCLAMATION }
 
-  | '.' { POINT }
-  | ',' { COMA }
+  | '.' {  POINT }
+  | ',' {  COMA }
 
-  | "instanceof" { INSTANCEOF }
+  | "instanceof" {  INSTANCEOF }
 
   | _    { raise (Error ("unknown character : " ^ lexeme lexbuf)) }
   | eof  { let tok = EOF in tok }

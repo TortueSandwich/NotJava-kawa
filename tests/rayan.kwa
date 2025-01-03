@@ -1,6 +1,7 @@
 var paire p;
 var triple t;
 var triple t2;
+var paire p2;
 
 class paire {
   attribute int x;
@@ -26,6 +27,10 @@ class triple extends paire {
   method int somme() {
     return this.x + this.y + this.z;
   }
+
+  method int prod() {
+    return this.x * this.y * this.z;
+  }
 }
 
 main {
@@ -35,4 +40,8 @@ main {
   // Affiche 7
   t2 = p as triple;
   print(t2.somme());
+
+  p2 = new paire (1,2);
+  t = p2 as triple;
+  //will bug 
 }
