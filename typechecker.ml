@@ -50,10 +50,10 @@ let check_subtype objective curr (find_class_def: string -> class_def)=
           aux objective (TClass parentclsdef.class_name) find_class_def
       | None -> error ("No parent class found for " ^ name)
       end
-  | _ -> error ("Cannot check subtype for primitive type: " ^ typ_to_string curr)
+  | _ -> error ("Cannot check subtype for primitive type: " ^ (string_of_typ curr))
   in
   try (aux objective curr find_class_def)
-  with TypeError s -> error (typ_to_string(curr) ^" is not a subtype of "^typ_to_string(objective) ^ ", " ^ s) 
+  with TypeError s -> error (string_of_typ(curr) ^" is not a subtype of "^string_of_typ(objective) ^ ", " ^ s) 
 
 let find_class_def class_name classes =
   try List.find (fun cls -> cls.class_name = class_name) classes
@@ -68,6 +68,9 @@ let find_method_def meth_name methods =
   | None -> error ("Method not found: " ^ meth_name)
 
 let objname_of_typ = function TClass clsname -> clsname | _ -> assert false
+
+let keys_of_map map : string list =
+  Hashtbl.fold (fun key _ acc -> key :: acc) map []
 
 let typecheck_prog (p : program) f: program =
   List.iter (fun (x, t) -> Env.define_globally x t) p.globals;
@@ -92,7 +95,7 @@ let typecheck_prog (p : program) f: program =
             {annot = TBool; expr = Unop(u,typed_e) ; loc = e.loc}
         | TypeCast (newType) -> 
             (try 
-              check_subtype newType typed_e.annot ; {annot = newType ; expr = typed_e.expr}
+              check_subtype newType typed_e.annot ; {annot = newType ; expr = typed_e.expr; loc = e.loc}
             with
             | _ ->  (try check_subtype typed_e.annot newType ;{annot = newType ; expr = Unop(u, typed_e); loc = e.loc} (*typecast vers le bas, à vérifier à l'exec*)
                     with TypeError s -> error ("Impossible to typecast, "^s)
@@ -120,10 +123,10 @@ let typecheck_prog (p : program) f: program =
             check_eq_type TBool typed_e1.annot;
             check_eq_type TBool typed_e2.annot;
             {annot = TBool ; expr =  Binop(u , typed_e1, typed_e2); loc = e.loc})
-    | Get m -> {annot =  type_mem_access m tenv ; expr = e.expr}
+    | Get m -> {annot =  type_mem_access m env_stack ; expr = e.expr; loc = e.loc}
     | This -> begin 
         try
-          let this = Env.find env_stack "this" in
+          let c = Env.find env_stack "this" in
         (* TClass (c.class_name) *)
         {annot = c ; expr = e.expr ; loc = e.loc}
         with Not_found -> error ("Class not found: " ^ "this")
@@ -159,8 +162,11 @@ let typecheck_prog (p : program) f: program =
     match m with
     | Var name -> begin
       try Env.find stack_env name with
-        | _ -> let closest = closest_string name (keys_of_map tenv) in error ("Undeclared variable: " ^ name ^ (if closest <> "" then
-          ", did you mean " ^ (Option.get closest) ^ " ?\n"
+        | _ -> (match stack_env with
+          [] -> error ("No variable is declared in this scope.")
+          | env::_ -> let closest = closest_string name (keys_of_map env) in 
+          error ("Undeclared variable: " ^ name ^ (if closest = None then ""
+          else ", did you mean " ^ (Option.get closest) ^ " ?\n"))
         )
         end
     | Field (obj, field_name) ->
@@ -180,26 +186,26 @@ let typecheck_prog (p : program) f: program =
         find_familly class_def
   and check_instr i ret stack_env : instr =
     try
-    match i with
+    match i.instr with
     | Print e ->
         let typed_e = check_expr e stack_env in
         check_eq_type TInt typed_e.annot;
-        Print typed_e
+        {instr = Print typed_e ; loc = i.loc}
     | If (cond, ifseq, elseseq) ->
         let typed_cond = check_expr cond stack_env in
         check_eq_type TBool typed_cond.annot;
-        If
+        {instr = If
           ( typed_cond,
             check_seq ifseq TVoid stack_env,
-            check_seq elseseq TVoid stack_env )
+            check_seq elseseq TVoid stack_env ) ; loc = i.loc}
     | While (cond, iseq) ->
         let typed_cond = check_expr cond stack_env in
         check_eq_type TBool typed_cond.annot;
-        While (typed_cond, check_seq iseq TVoid stack_env)
+        {instr = While (typed_cond, check_seq iseq TVoid stack_env) ; loc= i.loc}
     | Set (m, e) ->
         let typed_e = check_expr e stack_env in
         check_subtype typed_e.annot (type_mem_access m stack_env);
-        Set (m, typed_e)
+        {instr = Set (m, typed_e) ; loc = i.loc}
     | Return e ->
         let typed_e = check_expr e stack_env in
         check_eq_type typed_e.annot ret;
@@ -256,8 +262,9 @@ let typecheck_prog (p : program) f: program =
       let tenv = add_env m.params tenv in
       {method_name = m.method_name ; code = check_seq (m.code) m.return tenv; params = m.params ; locals = m.locals ; return = m.return}) 
       c.methods);
-
-    List.map typed_one_class p.classes
+      parent = c.parent
+    })
+    p.classes 
   in
 
   { classes = typed_classes; globals = p.globals; main = typed_seq }
