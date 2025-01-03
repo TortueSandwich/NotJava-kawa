@@ -167,7 +167,7 @@ let custom_printexc_to_string exn =
 let () =
   let exit code =
     if !input_files = [] then
-      Printf.printf "\027[2mRe-execute using\n./kawai.exe %s %s\027[0m\n"
+      printf "\027[2mRe-execute using\n./kawai.exe %s %s\027[0m\n"
         (List.nth files 0)
         (if !show_source then "-s" else "");
     exit code
@@ -177,10 +177,10 @@ let () =
       let l = b.pos_lnum in
       let fc = b.pos_cnum - b.pos_bol + 1 in
       let lc = e.pos_cnum - b.pos_bol + 1 in
-      eprintf "File \"%s\", line %d, characters %d-%d:\n" f l fc lc;
+      printf "File \"%s\", line %d, characters %d-%d:\n" f l fc lc;
       let line_content = get_line f l in
-      eprintf "%s\n" line_content;
-      eprintf "%s\n" (String.make (fc - 1) ' ' ^ String.make (lc - fc + 1) '^')
+      printf "%s\n" line_content;
+      printf "%s\n" (String.make (fc - 1) ' ' ^ String.make (lc - fc + 1) '^')
     in
     let c = open_in f in
     let lb = Lexing.from_channel c in
@@ -218,6 +218,7 @@ let () =
         exit 1
     | Typechecker.TypeError s -> 
         eprintf "\027[91mType error: \027[0m%s@." s;
+        report (lexeme_start_p lb, lexeme_end_p lb);
         exit 1
     | e ->
         eprintf "%s\n@." (custom_printexc_to_string e);
