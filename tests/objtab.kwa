@@ -1,0 +1,42 @@
+var paire[] tab1;
+
+class paire {
+  attribute int x;
+  attribute int y;
+
+  method void constructor(int x, int y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  method int somme() {
+    return this.x + this.y;
+  }
+}
+
+class triple extends paire {
+  attribute int z;
+
+  method void constructor(int x, int y, int z) {
+    this.x = x; this.y = y; this.z = z;
+  }
+
+  method int somme() {
+    return this.x + this.y + this.z;
+  }
+
+  method int prod() {
+    return this.x * this.y * this.z;
+  }
+}
+
+main {
+  tab1 = new paire[3];
+  tab1[0] = new paire(1,2);
+  tab1[1] = new paire(2,3);
+  print(tab1[0].somme());
+  print(tab1[1].somme());
+  tab1[2] = new triple(0,0,1);
+  print(tab1[2].somme());
+
+}
