@@ -92,6 +92,9 @@
     | TBOOL -> bleu^"bool"
     | TVOID -> bleu^"void"
 
+    | RBR -> jaune^"]"
+    | LBR -> jaune^"["
+
     (* | _ -> "UNKNOWN"  *)
     in t ^"\027[0m"    
 }
@@ -138,6 +141,9 @@ rule token = parse
   | ',' {  COMA }
 
   | "instanceof" {  INSTANCEOF }
+
+  | '[' {  LBR }
+  | ']' {  RBR }
 
   | _    { raise (Error ("unknown character : " ^ lexeme lexbuf)) }
   | eof  { let tok = EOF in tok }

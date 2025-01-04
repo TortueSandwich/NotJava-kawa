@@ -5,6 +5,8 @@
 
   exception ParserError of string
 
+
+  let rec tarray_of_dim n t = if n = 0 then t else TArray(tarray_of_dim (n-1) t) 
 %}
 
 %token MAIN BEGIN END EOF
@@ -13,7 +15,7 @@
 %token <bool> BOOL
 %token <string> IDENT
 %token PRINT VAR IF ELSE WHILE CLASS ATTRIBUTE METHOD NEW THIS RETURN EXTENDS
-%token AFFECT LPAR RPAR SEMI
+%token AFFECT LPAR RPAR SEMI LBR RBR
 %token PLUS MINUS TIMES DIV MOD 
 %token LT LEQ GT GEQ AND OR EQ NEQ
 %token POINT COMA 
@@ -93,6 +95,7 @@ rpar_handled :
 | RPAR { () }
 
 
+
 expression:
 | n=INT { {annot = TInt ; expr = Int(n) ; loc = $loc }}
 | b=BOOL { {annot = TBool ; expr = Bool(b) ; loc = $loc }}
@@ -106,7 +109,16 @@ expression:
 | e=expression POINT s=IDENT LPAR l=separated_list(COMA,expression) rpar_handled {{annot = TVoid ; expr = MethCall(e,s,l) ; loc = $loc}}
 | e=expression AS t=kawatype {{annot = TVoid ; expr = Unop(TypeCast(t), e) ; loc = $loc}}
 | e=expression INSTANCEOF t=kawatype {  {annot = TBool ; expr = Unop(InstanceOf(t) , e) ; loc = $loc}  }
+| NEW t=kawatype d=dimensions { {annot = tarray_of_dim (List.length d) t ; expr = NewArray(t, d) ; loc = $loc} }
 ;
+
+dimensions:
+|  LBR e=expression RBR rest=dimensions
+    { e :: rest } 
+|  { [] }
+;
+
+
 
 var_decl:
 | VAR t=kawatype vars=separated_nonempty_list(COMA, IDENT) value=affectation? semi_handled { (vars, t, value) }
@@ -145,13 +157,25 @@ method_def:
 %inline mem:
 | s=IDENT {Var(s) }
 | e=expression POINT s=IDENT {Field(e,s)}
+| s=IDENT e=dimensions {Array_var(s,e)}
 ;
+
+%inline base_types:
+| TINT {TInt}
+| TBOOL {TBool}
+| TVOID {TVoid}
+| s=IDENT {TClass(s)}
+
+brackets_seq:
+  | LBR RBR rest=brackets_seq { 1 + rest   } 
+  | { 0 } 
 
 %inline kawatype:
 | TINT {TInt}
 | TBOOL {TBool}
 | TVOID {TVoid}
 | s=IDENT {TClass(s)}
+| t=base_types dim=brackets_seq  { tarray_of_dim dim t }
 ;
 
 %inline unop:

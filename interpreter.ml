@@ -1,13 +1,14 @@
 open Kawa
 open Typechecker (*Pour importer check_subtype*)
 
-type value = VInt of int | VBool of bool | VObj of obj | Null
+type value = VInt of int | VBool of bool | VObj of obj | VArray of value array |Null 
 and obj = { cls : string; fields : (string, value) Hashtbl.t }
 
-let typ_of_value = function
+let rec typ_of_value = function
   | VInt _ -> TInt
   | VBool _ -> TBool
   | VObj obj -> TClass obj.cls
+  | VArray v -> TArray (typ_of_value v.(0))
   | Null -> TVoid
 
 exception Error of string
@@ -17,6 +18,7 @@ let string_of_value = function
   | VInt i -> string_of_int i
   | VBool _ -> "BOOL"
   | VObj _ -> "OBJ"
+  | VArray _ -> "ARRAY"
   | Null -> "NULL"
 
 module ValueType = struct
@@ -26,6 +28,32 @@ module ValueType = struct
 end
 
 module Env = Stack_env.MakeEnv (ValueType)
+
+
+let rec init_value = function
+  | TInt -> VInt 0
+  | TBool -> VBool false
+  | TClass _ -> Null
+  | TVoid -> Null
+  | TArray t -> VArray (Array.make 0 (init_value t))
+
+let rec create_array dims t =
+  match dims with
+  | [] -> failwith "Dimensions list cannot be empty"
+  | [dim] -> (match t with 
+            TInt -> VArray (Array.make dim (VInt 0))
+            | TBool -> VArray (Array.make dim (VBool false))
+            | TVoid -> VArray (Array.make dim Null)
+            | TClass _ -> VArray (Array.make dim Null)
+            | TArray t -> let core_type = Typechecker.get_array_core_type t in VArray (Array.make dim (init_value core_type))   
+          )
+  | dim :: rest ->VArray (Array.make dim (create_array rest t))
+
+
+let rec get_elem_from_indices (e:expr) value indexes = 
+    match indexes with
+    | [] -> Typechecker.error ("Dimension mismatch" ^ (Tools.report_bug e.loc (fst(e.loc)).pos_fname))
+    | hd::tl -> let elem = value.(hd) in match elem with VArray a -> get_elem_from_indices e a tl | _ -> if tl = [] then elem else Typechecker.error ("Dimension mismatch" ^ (Tools.report_bug e.loc (fst(e.loc)).pos_fname)) 
 
 (* main attraction *)
 let exec_prog (p : program) : unit =
@@ -100,6 +128,13 @@ let exec_prog (p : program) : unit =
             check_subtype t (typ_of_value v_e);
             VBool true
           with _ -> VBool false)
+      | AccessArray i -> 
+          let v_e = eval e env_stack in
+          let i = evali i env_stack in
+          (match v_e with
+          | VArray a -> (try a.(i) with Invalid_argument s -> raise (Error (s^Tools.report_bug e.loc (fst(e.loc)).pos_fname)))
+          | _ -> Typechecker.error ((string_of_expr e) ^ " is not an array")) 
+
     and evalbinop binop (e1 : expr) (e2 : expr) env_stack =
       let int_op f = VInt (f (evali e1 env_stack) (evali e2 env_stack)) in
       let bool_op f = VBool (f (evalb e1 env_stack) (evalb e2 env_stack)) in
@@ -134,6 +169,16 @@ let exec_prog (p : program) : unit =
       | Get (Field (obj, field_name)) ->
           let o = evalo obj env_stack in
           Hashtbl.find o.fields field_name
+      | Get (Array_var (name, index)) -> 
+          let v = Env.find env_stack name in
+          let evaled_index = List.map (fun x ->evali x env_stack ) index in
+          (match v with
+          | VArray a -> (try
+                get_elem_from_indices e a evaled_index
+             with Invalid_argument s -> raise (Error (s^ (Tools.report_bug e.loc (fst(e.loc)).pos_fname)))
+            )
+          | _ -> Typechecker.error ((string_of_expr e) ^ " is not an array")
+          )
       | This -> Env.find env_stack "this"
       | New class_name -> VObj (alloc class_name)
       | NewCstr (class_name, args) ->
@@ -149,6 +194,9 @@ let exec_prog (p : program) : unit =
       | MethCall (obj, meth_name, args) ->
           eval_call meth_name (evalo obj env_stack)
             (List.map (fun x -> eval x env_stack) args)
+      | NewArray (t, n) -> (
+          let n = List.map (fun x -> eval x env_stack) n in
+          create_array (List.map (fun x -> match x with VInt n -> n | _ -> Typechecker.error ("dim not integer.")) n) t ) 
       (* | _ -> failwith "case not implemented in eval" *)
     in
 
@@ -167,7 +215,24 @@ let exec_prog (p : program) : unit =
           | Var name -> Env.replace env_stack name (eval e env_stack)
           | Field (obj, field_name) ->
               let o = evalo obj env_stack in
-              Hashtbl.replace o.fields field_name (eval e env_stack))
+              Hashtbl.replace o.fields field_name (eval e env_stack)
+          | Array_var (name, i) -> 
+              let v = Env.find env_stack name in
+              let evaled_index = List.map (fun x ->evali x env_stack ) i in
+              (match v with
+                | VArray a -> (try(
+                  let a = ref a in 
+                  let rec aux a indexes = 
+                    match indexes with
+                    | [] -> Typechecker.error ("Dimension mismatch" ^ (Tools.report_bug e.loc (fst(e.loc)).pos_fname))
+                    | hd::tl -> let elem = (!a).(hd) in match elem with VArray a -> aux (ref a) tl | _ -> if tl = [] then (!a).(hd) <- (eval e env_stack) else Typechecker.error ("Dimension mismatch" ^ (Tools.report_bug e.loc (fst(e.loc)).pos_fname)) 
+                  in aux a evaled_index;
+                    )
+                  with Invalid_argument s -> raise (Error (s^ (Tools.report_bug e.loc (fst(e.loc)).pos_fname)))
+                  )
+              | _ -> Typechecker.error ((string_of_expr e) ^ " is not an array")
+              )
+            )
       | Return e -> raise (Return (eval e env_stack))
       | Expr e -> ignore (eval e env_stack)
       | Scope s ->

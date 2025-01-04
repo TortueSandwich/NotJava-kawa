@@ -28,6 +28,7 @@ let type_of_unop = function
   | Not -> TBool
   | TypeCast newType -> newType
   | InstanceOf _ -> TBool
+  | AccessArray _ -> TInt  
 
 let type_of_binop = function
   | Add | Sub | Mul | Div | Rem -> TInt
@@ -37,6 +38,17 @@ let type_of_binop = function
 let check_eq_type ?(context = "") expected actual =
   if expected <> actual then type_error ~context actual expected
 
+let get_array_elem_type = function
+  | TArray t -> t
+  | _ -> error ("Not an array")
+
+let rec get_array_core_type = function
+  | TArray t -> get_array_core_type t
+  | t -> t
+
+let rec reduce_dim t = function
+  | [] -> t
+  | _ :: tl ->match t with TArray t -> reduce_dim t tl | _ -> error "Dimension mismatch"
 
 let check_subtype objective curr (find_class_def: string -> class_def)=
   let rec aux objective curr (find_class_def : string -> class_def) =
@@ -103,6 +115,9 @@ let typecheck_prog (p : program) : program =
             )
         | InstanceOf (t) -> if t = typed_e.annot then {annot = TBool ; expr = Bool(true); loc = e.loc}
                             else {annot = TBool ; expr = Unop(u, typed_e); loc = e.loc}
+        | AccessArray (index) -> let typed_index = check_expr index env_stack in 
+                                 check_eq_type TInt typed_index.annot;
+                                {annot = get_array_elem_type typed_e.annot; expr = Unop(u, typed_e); loc = e.loc} 
     )
     | Binop (u, e1, e2) -> (
         let typed_e1 = check_expr e1 env_stack in
@@ -157,6 +172,10 @@ let typecheck_prog (p : program) : program =
           annot = methodeu.return;
           expr = MethCall (typed_obj, meth_name, typed_args); loc = e.loc;
         }
+      | NewArray (t, n) ->
+          let typed_n = List.map (fun x -> check_expr x env_stack) n in
+          List.iter (fun x -> check_eq_type TInt x.annot) typed_n;
+          {annot = e.annot; expr = NewArray (t, typed_n); loc = e.loc}
   and type_mem_access m stack_env : typ =
     match m with
     | Var name -> begin
@@ -185,6 +204,17 @@ let typecheck_prog (p : program) : program =
                   ("Field " ^ field_name ^ " not declared for class " ^ cls_name))
         in
         find_familly class_def
+    | Array_var (name, l) -> try 
+        let t = Env.find stack_env name in 
+        reduce_dim t l
+    with
+    | _ -> (
+      let closest = closest_string name (Env.get_all_names stack_env) in 
+      error ("Undeclared variable: " ^ name ^ (if closest <> (Some("")) then
+        ", did you mean " ^ (Option.get closest) ^ " ?\n" else ""
+        )
+    ))
+
   and check_instr i ret stack_env : instr =
     try
     match i.instr with

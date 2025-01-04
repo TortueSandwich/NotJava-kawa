@@ -75,5 +75,24 @@ let report_bug (pos: Lexing.position * Lexing.position) (f: string) =
   let error_indicator = String.make (fc - 1) ' ' ^ String.make (lc - fc + 1) '^' in
   sprintf "\nFile \"%s\", line %d, characters %d-%d:\n%s\n%s" f l fc lc line_content error_indicator
 
+let count_bracket_pairs (s: string) : int =
+  let len = String.length s in
+  let rec aux i count =
+    if i >= len - 1 then count
+    else if s.[i] = '[' && s.[i + 1] = ']' then aux (i + 2) (count + 1)
+    else aux (i + 1) count
+  in
+  aux 0 0
+
+let is_valid_array_string (s: string) : bool =
+  let len = String.length s in
+  let rec aux i =
+    if i >= len then true
+    else if s.[i] = '[' && i + 1 < len && s.[i + 1] = ']' then aux (i + 2)
+    else if s.[i] = '[' || s.[i] = ']' then false
+    else aux (i + 1)
+  in
+  aux 0
+
 
 

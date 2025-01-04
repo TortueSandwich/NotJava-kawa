@@ -4,24 +4,31 @@
 
 (* Types déclarés pour les attributs, pour les variables, et pour les
    paramètres et résultats des méthodes. *)
-type typ = TVoid | TInt | TBool | TClass of string
 
-let typ_of_string = function
+type typ = TVoid | TInt | TBool | TClass of string | TArray of typ
+
+let rec typ_of_string = function
   | "int" -> TInt
   | "bool" -> TBool
   | "void" -> TVoid
-  | classname -> TClass classname
+  | s->if Tools.is_valid_array_string s then TArray (typ_of_string (String.sub s 0 ((String.length s) - 2))) else TClass s
 
-let string_of_typ = function
+let rec string_of_typ = function
   | TVoid -> "void"
   | TInt -> "int"
   | TBool -> "bool"
   | TClass c -> c
+  | TArray t -> let rec aux t acc= 
+                      match t with 
+                      TArray t -> aux t ("[]"^acc) 
+                      | base_type -> (string_of_typ base_type) ^ acc 
+                      in aux t "[]" 
 
 
-type unop = Opp | Not | TypeCast of typ | InstanceOf of typ
+type unop = Opp | Not | TypeCast of typ | InstanceOf of typ | AccessArray of expr
+(* Opérations binaires *)
 
-type binop =
+and binop =
   | Add
   | Sub
   | Mul
@@ -37,7 +44,7 @@ type binop =
   | Or
 
 (* Expressions *)
-type expr = {annot : typ ; expr : expr_; loc : Lexing.position * Lexing.position}
+and expr = {annot : typ ; expr : expr_; loc : Lexing.position * Lexing.position}
 and expr_ = 
   (* Base arithmétique *)
   | Int of int
@@ -53,11 +60,14 @@ and expr_ =
   | NewCstr of string * expr list
   (* Appel de méthode *)
   | MethCall of expr * string * expr list
+  (*Création d'un tableau*)
+  | NewArray of typ * expr list   (*dimensions*)
 
 (* Accès mémoire : variable ou attribut d'un objet *)
 and mem_access =
   | Var of string (* Variable *)
   | Field of expr (* objet *) * string (* nom d'un attribut *)
+  | Array_var of string(* Variable de type array *) * expr list(* indice *)
 
 (* Instructions *)
 type instr = { instr : instr_ ;  loc : Lexing.position * Lexing.position}
@@ -114,27 +124,6 @@ type program = {
   main : seq;
 }
 
-let string_of_unop unop = match unop with 
-  Opp -> "Opp" | Not -> "Not" 
-  | TypeCast (newType) -> "TypeCast("^( string_of_typ newType) ^ ")"
-  | InstanceOf (t) -> "InstanceOf ("^( string_of_typ t) ^ ")"
-
-let string_of_biop (biop : binop) : string =
-  match biop with
-  | Add -> "Add"
-  | Sub -> "Sub"
-  | Mul -> "Mul"
-  | Div -> "Div"
-  | Rem -> "Rem"
-  | Lt -> "Lt"
-  | Le -> "Le"
-  | Gt -> "Gt"
-  | Ge -> "Ge"
-  | Eq -> "Eq"
-  | Neq -> "Neq"
-  | And -> "And"
-  | Or -> "Or"
-
 let rec string_of_expr (e : expr) : string =
   let fmt = Printf.sprintf in
   match e.expr with
@@ -150,11 +139,37 @@ let rec string_of_expr (e : expr) : string =
   | New c -> fmt "%s" c
   | NewCstr (c, _) -> fmt "%s" c
   | MethCall (e1, c, el) -> fmt "%s" c
+  | NewArray (t, n) -> fmt "new %s%s" (string_of_typ t) (List.fold_left (fun acc x -> acc ^ "[" ^ (string_of_expr x) ^ "]") "" n)
+and string_of_unop unop = match unop with 
+  Opp -> "Opp" | Not -> "Not" 
+  | TypeCast (newType) -> "TypeCast("^( string_of_typ newType) ^ ")"
+  | InstanceOf (t) -> "InstanceOf ("^( string_of_typ t) ^ ")"
+  | AccessArray (i) -> "["^(string_of_expr i)^"]"
+
+and string_of_biop (biop : binop) : string =
+    match biop with
+    | Add -> "Add"
+    | Sub -> "Sub"
+    | Mul -> "Mul"
+    | Div -> "Div"
+    | Rem -> "Rem"
+    | Lt -> "Lt"
+    | Le -> "Le"
+    | Gt -> "Gt"
+    | Ge -> "Ge"
+    | Eq -> "Eq"
+    | Neq -> "Neq"
+    | And -> "And"
+    | Or -> "Or"
+  
+
 and string_of_mem = function
     | Var name -> name
     | Field (obj, field_name) -> (
       (string_of_expr obj) ^ "." ^ field_name
     )
+    | Array_var (name, i) -> name ^ List.fold_left (fun acc x -> acc^"[" ^ (string_of_expr x) ^ "]" ) "" i
+    
 
 let string_of_instr = function
   | Print e -> "print"
@@ -166,3 +181,4 @@ let string_of_instr = function
   | Scope s -> "scope"
   | Declare (v,t,value) -> "declare " ^ (List.fold_left (fun acc x -> acc ^ " "^ x) "" v)
 
+let () = print_string (string_of_typ (TArray (TInt)));
