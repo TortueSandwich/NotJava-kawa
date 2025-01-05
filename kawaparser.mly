@@ -110,13 +110,11 @@ expression:
 | e=expression POINT s=IDENT LPAR l=separated_list(COMA,expression) rpar_handled {{annot = TVoid ; expr = MethCall(e,s,l) ; loc = $loc}}
 | e=expression AS t=kawatype {{annot = TVoid ; expr = Unop(TypeCast(t), e) ; loc = $loc}}
 | e=expression INSTANCEOF t=kawatype {  {annot = TBool ; expr = Unop(InstanceOf(t) , e) ; loc = $loc}  }
-| NEW t=kawatype d=dimensions { {annot = tarray_of_dim (List.length d) t ; expr = NewArray(t, d) ; loc = $loc} }
+| NEW t=base_types d=nonempty_list(dimension) { {annot = tarray_of_dim (List.length d) t ; expr = NewArray(t, d) ; loc = $loc} }
 ;
 
-dimensions:
-|  LBR e=expression RBR rest=dimensions
-    { e :: rest } 
-|  { [] }
+dimension:
+|  LBR e=expression RBR { e } 
 ;
 
 
@@ -169,7 +167,7 @@ method_def:
 %inline mem:
 | s=IDENT {Var(s) }
 | e=expression POINT s=IDENT {Field(e,s)}
-| s=IDENT e=dimensions {Array_var(s,e)}
+| s=IDENT e=nonempty_list(dimension) {Array_var(s,e)}
 ;
 
 %inline base_types:
@@ -177,18 +175,17 @@ method_def:
 | TBOOL {TBool}
 | TVOID {TVoid}
 | s=IDENT {TClass(s)}
-
-brackets_seq:
-  | LBR RBR rest=brackets_seq { 1 + rest   } 
-  | { 0 } 
+;
 
 %inline kawatype:
-| TINT {TInt}
-| TBOOL {TBool}
-| TVOID {TVoid}
-| s=IDENT {TClass(s)}
-| t=base_types dim=brackets_seq  { tarray_of_dim dim t }
+| t=base_types { t }
+| t=base_types dim=nonempty_list(bracket_pair)  { tarray_of_dim (List.length dim) t }
 ;
+
+bracket_pair:
+| LBR RBR { 1 }
+;
+
 
 %inline unop:
 | MINUS {Opp}
