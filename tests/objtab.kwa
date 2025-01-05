@@ -1,4 +1,5 @@
 var paire[] tab1;
+var triple[] tab2;
 
 class paire {
   attribute int x;
@@ -39,4 +40,9 @@ main {
   tab1[2] = new triple(0,0,1);
   print(tab1[2].somme());
 
+  tab2 = new triple[3];
+  tab2[0] = new triple(1,2,3);
+  //tab2[2] = new paire(0,1); will bug
+
+  //affiche 3 5 1
 }

@@ -49,11 +49,12 @@ let rec create_array dims t =
           )
   | dim :: rest ->VArray (Array.make dim (create_array rest t))
 
+let report_bug (e:expr) = Tools.report_bug e.loc (fst(e.loc)).pos_fname 
 
 let rec get_elem_from_indices (e:expr) value indexes = 
     match indexes with
-    | [] -> Typechecker.error ("Dimension mismatch" ^ (Tools.report_bug e.loc (fst(e.loc)).pos_fname))
-    | hd::tl -> let elem = value.(hd) in match elem with VArray a -> get_elem_from_indices e a tl | _ -> if tl = [] then elem else Typechecker.error ("Dimension mismatch" ^ (Tools.report_bug e.loc (fst(e.loc)).pos_fname)) 
+    | [] -> Typechecker.error ("Dimension mismatch" ^ report_bug e)
+    | hd::tl -> let elem = value.(hd) in match elem with VArray a -> get_elem_from_indices e a tl | _ -> if tl = [] then elem else Typechecker.error ("Dimension mismatch" ^ (report_bug e)) 
 
 (* main attraction *)
 let exec_prog (p : program) : unit =
@@ -132,7 +133,7 @@ let exec_prog (p : program) : unit =
           let v_e = eval e env_stack in
           let i = evali i env_stack in
           (match v_e with
-          | VArray a -> (try a.(i) with Invalid_argument s -> raise (Error (s^Tools.report_bug e.loc (fst(e.loc)).pos_fname)))
+          | VArray a -> (try a.(i) with Invalid_argument s -> raise (Error (s^ report_bug e)))
           | _ -> Typechecker.error ((string_of_expr e) ^ " is not an array")) 
 
     and evalbinop binop (e1 : expr) (e2 : expr) env_stack =
@@ -175,7 +176,7 @@ let exec_prog (p : program) : unit =
           (match v with
           | VArray a -> (try
                 get_elem_from_indices e a evaled_index
-             with Invalid_argument s -> raise (Error (s^ (Tools.report_bug e.loc (fst(e.loc)).pos_fname)))
+             with Invalid_argument s -> raise (Error (s^ report_bug e))
             )
           | _ -> Typechecker.error ((string_of_expr e) ^ " is not an array")
           )
@@ -196,7 +197,7 @@ let exec_prog (p : program) : unit =
             (List.map (fun x -> eval x env_stack) args)
       | NewArray (t, n) -> (
           let n = List.map (fun x -> eval x env_stack) n in
-          create_array (List.map (fun x -> match x with VInt n -> n | _ -> Typechecker.error ("dim not integer.")) n) t ) 
+          create_array (List.map (fun x -> match x with VInt n -> if n > 0 then n else raise (Error("Size for dimension has to be > 0."^ report_bug e)) | _ -> Typechecker.error ("Size given for dimension is not integer."^report_bug e)) n) t ) 
       (* | _ -> failwith "case not implemented in eval" *)
     in
 
@@ -224,11 +225,11 @@ let exec_prog (p : program) : unit =
                   let a = ref a in 
                   let rec aux a indexes = 
                     match indexes with
-                    | [] -> Typechecker.error ("Dimension mismatch" ^ (Tools.report_bug e.loc (fst(e.loc)).pos_fname))
-                    | hd::tl -> let elem = (!a).(hd) in match elem with VArray a -> aux (ref a) tl | _ -> if tl = [] then (!a).(hd) <- (eval e env_stack) else Typechecker.error ("Dimension mismatch" ^ (Tools.report_bug e.loc (fst(e.loc)).pos_fname)) 
+                    | [] -> Typechecker.error ("Dimension mismatch" ^ report_bug e)
+                    | hd::tl -> let elem = (!a).(hd) in match elem with VArray a -> aux (ref a) tl | _ -> if tl = [] then (!a).(hd) <- (eval e env_stack) else Typechecker.error ("Dimension mismatch" ^ (report_bug e))
                   in aux a evaled_index;
                     )
-                  with Invalid_argument s -> raise (Error (s^ (Tools.report_bug e.loc (fst(e.loc)).pos_fname)))
+                  with Invalid_argument s -> raise (Error (s^ (report_bug e)))
                   )
               | _ -> Typechecker.error ((string_of_expr e) ^ " is not an array")
               )
