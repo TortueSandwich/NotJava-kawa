@@ -74,6 +74,12 @@ let find_class_def class_name classes =
      | Some closest -> ", did you mean " ^ closest ^ " ?\n"
      | None -> ""))
 
+let find_interface_def interface_name interfaces =
+  try List.find (fun i -> i.interface_name = interface_name) interfaces
+  with Not_found -> error ("Interface not found: " ^ interface_name ^ (match closest_string interface_name (List.map (fun i -> i.interface_name) interfaces) with
+     | Some closest -> ", did you mean " ^ closest ^ " ?\n"
+     | None -> ""))
+
 let find_method_def meth_name methods =
   match List.find_opt (fun m -> m.method_name = meth_name) methods with
   | Some m -> m
@@ -88,6 +94,7 @@ let typecheck_prog (p : program) : program =
   List.iter (fun (x, t) -> Env.define_globally x t) p.globals;
 
   let find_class_def class_name = find_class_def class_name p.classes in
+  let find_interface_def interface_name = find_interface_def interface_name p.interfaces in
   let check_subtype objective curr =
     check_subtype objective curr find_class_def
   in
@@ -278,6 +285,18 @@ let typecheck_prog (p : program) : program =
   let typed_seq = check_seq p.main TVoid (Env.new_env_stack ()) in
 
   let typed_classes =
+
+    let class_match_interface (class_def:class_def) (interface_def:interface_def) : unit =
+      let check_eq_signatures method1 method2 =
+        if method1.params <> method2.params || method1.method_name <> method2.method_name || method1.return <> method2.return  then
+          error
+            (Printf.sprintf
+               "Method %s has different signature than method %s"
+               method1.method_name  method2.method_name) 
+      in
+      List.iter (fun meth -> try  check_eq_signatures (List.find (fun x -> meth.method_name = x.method_name) class_def.methods)  meth with Not_found  -> error (Printf.sprintf "Method %s must be implemented in class %s" meth.method_name class_def.class_name)) interface_def.methods
+    in
+
     let typed_one_class c =
       let global_env = Env.new_env_stack () in
       let class_stack_env = Env.new_env global_env  in
@@ -297,15 +316,17 @@ let typecheck_prog (p : program) : program =
           return = m.return;
         } 
       in
-
+      
+      List.iter (class_match_interface c) (List.map find_interface_def c.implemented_interfaces) ;
       {
         class_name = c.class_name;
         attributes = c.attributes;
         methods = List.map typed_method c.methods;
         parent = c.parent;
+        implemented_interfaces = c.implemented_interfaces;
       }
     in
     List.map typed_one_class p.classes
   in
 
-  { classes = typed_classes; globals = p.globals; main = typed_seq }
+  { classes = typed_classes;interfaces = p.interfaces ;globals = p.globals; main = typed_seq }

@@ -81,7 +81,7 @@ let exec_prog (p : program) : unit =
 
   let rec eval_call f this args =
     let defclass = List.find (fun cls -> cls.class_name = this.cls) p.classes in
-    let rec findmethod defclass =
+    let rec findmethod (defclass:class_def) =
       match List.find_opt (fun m -> m.method_name = f) defclass.methods with
       | Some m -> m
       | None -> (

@@ -114,11 +114,24 @@ type class_def = {
   attributes : (string * typ) list;
   methods : method_def list;
   parent : string option;
+  implemented_interfaces : string list;
+}
+
+(* Définition d'une interface
+
+   Syntaxe : interface <nom de l'interface> { ... }
+
+*)
+
+type interface_def = {
+  interface_name : string;
+  methods : method_def list;
 }
 
 (* Programme complet : variables globales, classes, et une séquence
    d'instructions *)
 type program = {
+  interfaces : interface_def list;
   classes : class_def list;
   globals : (string * typ) list;
   main : seq;
@@ -180,5 +193,3 @@ let string_of_instr = function
   | Expr e -> "expr"
   | Scope s -> "scope"
   | Declare (v,t,value) -> "declare " ^ (List.fold_left (fun acc x -> acc ^ " "^ x) "" v)
-
-let () = print_string (string_of_typ (TArray (TInt)));

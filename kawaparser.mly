@@ -14,7 +14,7 @@
 %token <int> INT
 %token <bool> BOOL
 %token <string> IDENT
-%token PRINT VAR IF ELSE WHILE CLASS ATTRIBUTE METHOD NEW THIS RETURN EXTENDS
+%token PRINT VAR IF ELSE WHILE CLASS INTERFACE ATTRIBUTE METHOD NEW THIS RETURN EXTENDS IMPLEMENTS
 %token AFFECT LPAR RPAR SEMI LBR RBR
 %token PLUS MINUS TIMES DIV MOD 
 %token LT LEQ GT GEQ AND OR EQ NEQ
@@ -43,6 +43,7 @@
 
 program:
   globals_var=list(globals_var_decl)
+  interfaces=list(interface_def)
   classes=list(class_def)
   MAIN BEGIN 
   i=list(instruction)
@@ -54,7 +55,7 @@ program:
           (acc_globals @ defs, acc_instrs @ instrs)
         ) ([], []) globals_var
     in
-    { globals; classes; main = globals_init @ i }
+    { globals; interfaces ;classes; main = globals_init @ i }
   }
 ;
 
@@ -129,13 +130,24 @@ affectation:
 ;
 
 class_def: 
-| CLASS class_name=IDENT parent=extends? BEGIN attributes=list(attr_decl) methods=list(method_def) end_handled {
-   { class_name; attributes; methods; parent } 
+| CLASS class_name=IDENT parent=extends? implemented_interfaces=implements BEGIN attributes=list(attr_decl) methods=list(method_def) end_handled {
+   { class_name; attributes; methods; parent; implemented_interfaces}  
 }
 ;
 
 extends : 
 | EXTENDS parent_name=IDENT {parent_name}
+;
+
+implements :
+| IMPLEMENTS interfaces=separated_nonempty_list(COMA, IDENT) {interfaces}
+| { []}
+;
+
+interface_def: 
+| INTERFACE interface_name=IDENT BEGIN methods=list(method_def) end_handled {
+   { interface_name; methods} 
+}
 ;
 
 

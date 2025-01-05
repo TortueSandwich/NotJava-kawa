@@ -15,8 +15,10 @@
         "if",       IF;
         "else",     ELSE;
         "while",    WHILE;
+        "interface" , INTERFACE;
         "class",    CLASS;
         "extends",  EXTENDS;
+        "implements",  IMPLEMENTS;
         "attribute",ATTRIBUTE;
         "method",   METHOD;
         "new",      NEW;
@@ -78,7 +80,9 @@
     | IF -> violet^"if"
     | ELSE -> violet^"else"
     | CLASS -> violet^"class"
+    | INTERFACE -> violet^"interface"
     | EXTENDS -> violet^"extends"
+    | IMPLEMENTS -> violet^"implements"
     | RETURN -> violet^"return"
     | NEW -> violet^"new"
     | ATTRIBUTE -> violet^"attribute"
