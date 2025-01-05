@@ -59,6 +59,8 @@ let rec get_elem_from_indices (e:expr) value indexes =
 (* main attraction *)
 let exec_prog (p : program) : unit =
   let find_class_def class_name = find_class_def class_name p.classes in
+  let find_interface_def interface_name = find_interface_def interface_name p.interfaces in
+  let get_interfaces_from_class class_name = let c = find_class_def class_name in List.fold_left (fun acc name -> (find_interface_def name)::acc) [] c.implemented_interfaces in
   let check_subtype objective curr =
     check_subtype objective curr find_class_def
   in
@@ -82,7 +84,8 @@ let exec_prog (p : program) : unit =
   let rec eval_call f this args =
     let defclass = List.find (fun cls -> cls.class_name = this.cls) p.classes in
     let rec findmethod (defclass:class_def) =
-      match List.find_opt (fun m -> m.method_name = f) defclass.methods with
+      let definterfaces = get_interfaces_from_class defclass.class_name in 
+      match List.find_opt (fun m -> m.method_name = f) (defclass.methods@(List.filter (fun x -> x.default = true) (List.flatten (List.map (fun inter-> inter.methods) definterfaces)))) with
       | Some m -> m
       | None -> (
           match defclass.parent with

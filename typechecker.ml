@@ -83,7 +83,9 @@ let find_interface_def interface_name interfaces =
 let find_method_def meth_name methods =
   match List.find_opt (fun m -> m.method_name = meth_name) methods with
   | Some m -> m
-  | None -> error ("Method not found: " ^ meth_name)
+  | None -> error ("Method not found: " ^ meth_name ^ (match closest_string meth_name (List.map (fun m -> m.method_name) methods) with
+     | Some closest -> ", did you mean " ^ closest ^ " ?\n"
+     | None -> ""))
 
 let objname_of_typ = function TClass clsname -> clsname | _ -> assert false
 
@@ -95,6 +97,7 @@ let typecheck_prog (p : program) : program =
 
   let find_class_def class_name = find_class_def class_name p.classes in
   let find_interface_def interface_name = find_interface_def interface_name p.interfaces in
+  let get_interfaces_from_class class_name = let c = find_class_def class_name in List.fold_left (fun acc name -> (find_interface_def name)::acc) [] c.implemented_interfaces in
   let check_subtype objective curr =
     check_subtype objective curr find_class_def
   in
@@ -170,7 +173,8 @@ let typecheck_prog (p : program) : program =
 
         let typcls = objname_of_typ typed_obj.annot in
         let defclass = find_class_def typcls in
-        let methodeu = find_method_def meth_name defclass.methods in
+        let definterfaces = get_interfaces_from_class typcls in 
+        let methodeu = find_method_def meth_name (defclass.methods@(List.filter (fun x -> x.default = true) (List.flatten (List.map (fun inter-> inter.methods) definterfaces)))) in
         let param_types = List.map snd methodeu.params in
         let typed_args = List.map (fun arg -> check_expr arg env_stack) args in
         List.iter2 check_subtype param_types
@@ -294,7 +298,8 @@ let typecheck_prog (p : program) : program =
                "Method %s has different signature than method %s"
                method1.method_name  method2.method_name) 
       in
-      List.iter (fun meth -> try  check_eq_signatures (List.find (fun x -> meth.method_name = x.method_name) class_def.methods)  meth with Not_found  -> error (Printf.sprintf "Method %s must be implemented in class %s" meth.method_name class_def.class_name)) interface_def.methods
+      List.iter (fun meth -> try  check_eq_signatures (List.find (fun x -> meth.method_name = x.method_name) class_def.methods)  meth with Not_found  -> error (Printf.sprintf "Method %s must be implemented in class %s" meth.method_name class_def.class_name))
+                 (List.filter (fun met -> met.default = false) interface_def.methods) (*checks implementation for methods without default*)
     in
 
     let typed_one_class c =
@@ -314,6 +319,7 @@ let typecheck_prog (p : program) : program =
           params = m.params;
           locals = m.locals;
           return = m.return;
+          default = m.default;
         } 
       in
       

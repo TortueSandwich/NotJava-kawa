@@ -14,7 +14,7 @@
 %token <int> INT
 %token <bool> BOOL
 %token <string> IDENT
-%token PRINT VAR IF ELSE WHILE CLASS INTERFACE ATTRIBUTE METHOD NEW THIS RETURN EXTENDS IMPLEMENTS
+%token PRINT VAR IF ELSE WHILE CLASS INTERFACE ATTRIBUTE METHOD NEW THIS RETURN EXTENDS IMPLEMENTS DEFAULT  
 %token AFFECT LPAR RPAR SEMI LBR RBR
 %token PLUS MINUS TIMES DIV MOD 
 %token LT LEQ GT GEQ AND OR EQ NEQ
@@ -143,7 +143,7 @@ implements :
 ;
 
 interface_def: 
-| INTERFACE interface_name=IDENT BEGIN methods=list(method_def) end_handled {
+| INTERFACE interface_name=IDENT BEGIN methods=list(method_def_inter) end_handled {
    { interface_name; methods} 
 }
 ;
@@ -161,8 +161,31 @@ method_def:
 | METHOD return=kawatype method_name=IDENT LPAR params=separated_list(COMA,param) rpar_handled BEGIN 
  code=list(instruction) end_handled
 {
-  { method_name; code; params; locals=[]; return;}}
+  { method_name; code; params; locals=[]; return; default = true}}
 ;
+
+
+method_def_inter:
+| d=def_avec_default {d}
+| d=def_sans_default {d}
+;
+
+
+def_avec_default: 
+| DEFAULT METHOD return=kawatype method_name=IDENT LPAR params=separated_list(COMA,param) rpar_handled BEGIN 
+ code=list(instruction) end_handled
+{
+  { method_name; code; params; locals=[]; return; default = true }}
+;
+
+def_sans_default: 
+| METHOD return=kawatype method_name=IDENT LPAR params=separated_list(COMA,param) rpar_handled semi_handled
+{
+  { method_name; code = [] ; params; locals=[]; return; default = false}}
+;
+
+
+
 
 %inline mem:
 | s=IDENT {Var(s) }

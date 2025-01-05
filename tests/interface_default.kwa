@@ -3,7 +3,7 @@ var paire p;
 
 
 interface n_uplet {
-  method int somme();
+  default method int somme(){return this.x + this.y;}
 }
 
 class paire implements n_uplet{
@@ -13,10 +13,6 @@ class paire implements n_uplet{
   method void constructor(int x, int y) {
     this.x = x;
     this.y = y;
-  }
-
-   method int somme() {
-    return this.x + this.y;
   }
 
   method int produit() {

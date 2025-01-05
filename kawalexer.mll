@@ -21,6 +21,7 @@
         "implements",  IMPLEMENTS;
         "attribute",ATTRIBUTE;
         "method",   METHOD;
+        "default" , DEFAULT;
         "new",      NEW;
         "true",     BOOL(true);
         "false",    BOOL(false);
@@ -90,6 +91,7 @@
     | AS -> violet^"as"
     | THIS -> orange ^"this"
     | INSTANCEOF -> violet^"instanceof"
+    | DEFAULT -> violet^"default"
     (* | IMPL -> violet^"impl" *)
 
     | TINT -> bleu^"int"
