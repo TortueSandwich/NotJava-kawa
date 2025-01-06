@@ -286,10 +286,7 @@ let typecheck_prog (p : program) : program =
     List.map (fun i -> check_instr i ret tenv) s
   in
 
-  let typed_seq = check_seq p.main TVoid (Env.new_env_stack ()) in
-
   let typed_classes =
-
     let class_match_interface (class_def:class_def) (interface_def:interface_def) : unit =
       let check_eq_signatures method1 method2 =
         if method1.params <> method2.params || method1.method_name <> method2.method_name || method1.return <> method2.return  then
@@ -335,4 +332,6 @@ let typecheck_prog (p : program) : program =
     List.map typed_one_class p.classes
   in
 
+  let typed_seq = check_seq p.main TVoid (Env.new_env_stack ()) in
+  
   { classes = typed_classes;interfaces = p.interfaces ;globals = p.globals; main = typed_seq }

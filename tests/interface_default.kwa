@@ -1,4 +1,4 @@
-var paire p;
+var triple t;
 
 
 
@@ -6,7 +6,7 @@ interface n_uplet {
   default method int somme(){return this.x + this.y;}
 }
 
-class paire implements n_uplet{
+class paire {
   attribute int x;
   attribute int y;
 
@@ -20,9 +20,21 @@ class paire implements n_uplet{
   }
 }
 
+class triple extends paire implements n_uplet{
+  attribute int z;
+
+  method void constructor(int x, int y, int z) {
+    this.x = x; this.y = y; this.z = z;
+  }
+
+  method int produit() {
+    return this.x * this.y * this.z;
+  }
+}
+
 main {
-  p = new paire(3, 4);
-  print(p.produit());
-  print(p.somme());
-  //affiche 12 7
+  t = new triple(1,3, 4);
+  print(t.produit());
+  print(t.somme());
+  //affiche 12 4
 }
