@@ -4,19 +4,23 @@
 
 (* Types déclarés pour les attributs, pour les variables, et pour les
    paramètres et résultats des méthodes. *)
-type typ = TVoid | TInt | TBool | TClass of string
+
+type typ = TVoid | TInt | TBool | TClass of string * typ list
 
 let typ_of_string = function
   | "int" -> TInt
   | "bool" -> TBool
   | "void" -> TVoid
-  | classname -> TClass classname
+  | classname -> TClass (classname, [])
 
-let string_of_typ = function
+let rec string_of_typ = function
   | TVoid -> "void"
   | TInt -> "int"
   | TBool -> "bool"
-  | TClass c -> c
+  | TClass(c,l) -> c ^ "<" ^ 
+  (* :if Option.is_some l then string_of_typ (Option.get l) else "" *)
+  List.fold_left (fun acc x -> acc ^ ",") "" l 
+  ^ ">"
 
 
 type unop = Opp | Not | TypeCast of typ | InstanceOf of typ
@@ -50,7 +54,7 @@ and expr_ =
   | This
   (* Création d'un nouvel objet *)
   | New of string
-  | NewCstr of string * expr list
+  | NewCstr of string * typ list * expr list
   (* Appel de méthode *)
   | MethCall of expr * string * expr list
 
@@ -101,7 +105,8 @@ type method_def = {
    paramètre implicite this. *)
 type class_def = {
   class_name : string;
-  attributes : (string * typ) list;
+  generics : string list;
+  attributes : (string * typ * string list) list;
   methods : method_def list;
   parent : string option;
 }
@@ -148,7 +153,7 @@ let rec string_of_expr (e : expr) : string =
   | Get m -> "Get(" ^ (string_of_mem m) ^")"
   | This -> "This"
   | New c -> fmt "%s" c
-  | NewCstr (c, _) -> fmt "%s" c
+  | NewCstr (c,_ ,_) -> fmt "%s" c
   | MethCall (e1, c, el) -> fmt "%s" c
 and string_of_mem = function
     | Var name -> name

@@ -45,10 +45,10 @@ let rec expr_to_dot with_id (e : expr) =
       let cls_node = create_node c_id s in
       let con = create_connection with_id c_id in
       ([ currnode; cls_node ], [ con ])
-  | NewCstr (s, l) ->
+  | NewCstr (s, gene, l) ->
       let currnode = create_node with_id "newCstr" in
       let c_id = fresh_id () in
-      let cls_node = create_node c_id s in
+      let cls_node = create_node c_id (s^ List.fold_left (fun acc x -> acc ^ string_of_typ x) "" gene) in
       let con = create_connection with_id c_id in
       let argnodes, argcon =
         create_node_and_connections with_id l ~ordered:true

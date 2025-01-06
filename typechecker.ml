@@ -42,12 +42,12 @@ let check_subtype objective curr (find_class_def: string -> class_def)=
   let rec aux objective curr (find_class_def : string -> class_def) =
   if objective = curr then ()
   else match curr with
-  | TClass name -> 
+  | TClass (name, _) -> 
       let classdef = find_class_def name in
       begin match classdef.parent with
       | Some parentname -> 
           let parentclsdef = find_class_def parentname in
-          aux objective (TClass parentclsdef.class_name) find_class_def
+          aux objective (TClass (parentclsdef.class_name, [])) find_class_def
       | None -> error ("No parent class found for " ^ name)
       end
   | _ -> error ("Cannot check subtype for primitive type: " ^ (Kawa.string_of_typ curr))
@@ -67,7 +67,7 @@ let find_method_def meth_name methods =
   | Some m -> m
   | None -> error ("Method not found: " ^ meth_name)
 
-let objname_of_typ = function TClass clsname -> clsname | _ -> assert false
+let objname_of_typ = function TClass (clsname, gener) -> clsname | _ -> assert false
 
 let keys_of_map map : string list =
   Hashtbl.fold (fun key _ acc -> key :: acc) map []
@@ -133,16 +133,28 @@ let typecheck_prog (p : program) : program =
 
     | New class_name -> 
       ignore(find_class_def class_name);     (*checks existance*)
-      {annot = TClass class_name ; expr = e.expr; loc = e.loc}
-    | NewCstr (class_name, args) ->
+      {annot = TClass (class_name, []) ; expr = e.expr; loc = e.loc}
+    | NewCstr (class_name, genrics ,args) ->
         let defclass = find_class_def class_name in
         let constructor = find_method_def "constructor" defclass.methods in
         let param_types = List.map snd constructor.params in
         let arg_types =
           List.map (fun arg -> (check_expr arg env_stack).annot) args
         in
-        List.iter2 check_subtype param_types arg_types;
-        { annot = TClass class_name; expr = e.expr; loc = e.loc }
+        let create_hashtbl keys values =
+          let table = Hashtbl.create (List.length keys) in
+          List.iter2 (fun key value -> Hashtbl.add table key value) keys values;
+          table
+        in 
+        let table = create_hashtbl defclass.generics genrics in
+        let check_subtype_spe paramt argt =
+          match paramt with
+          | TClass(pramnametype, _) -> 
+              check_subtype (Hashtbl.find_opt table pramnametype |> Option.value ~default:paramt) argt
+          | _ -> check_subtype paramt argt
+        in
+        List.iter2 check_subtype_spe param_types arg_types;
+        { annot = TClass (class_name, genrics); expr = e.expr; loc = e.loc }
     | MethCall (obj, meth_name, args) ->
         let typed_obj = check_expr obj env_stack in
 
@@ -174,7 +186,10 @@ let typecheck_prog (p : program) : program =
         let cls_name = objname_of_typ (check_expr obj stack_env).annot in
         let class_def = find_class_def cls_name in
         let rec find_familly c =
-          try List.assoc field_name c.attributes
+          try 
+            let (_,res,_) = List.find (fun (k, _, _) -> k = field_name) c.attributes  
+            in res
+            (* List.assoc field_name c.attributes *)
           with Not_found -> (
             match c.parent with
             | Some parentname ->
@@ -228,8 +243,7 @@ let typecheck_prog (p : program) : program =
         {instr = Declare (varnames, t, None); loc=i.loc}
     | Declare (varnames, t, Some v) ->
         let f x =
-          if Env.is_declared_locally stack_env x then
-            (* exec (Set (Var x, v)) stack_env *) ()
+          if Env.is_declared_locally stack_env x then ()
           else Env.define_locally stack_env x t
         in
         List.iter f varnames;
@@ -252,9 +266,9 @@ let typecheck_prog (p : program) : program =
       let global_env = Env.new_env_stack () in
       let class_stack_env = Env.new_env global_env  in
       List.iter
-        (fun (x, t) -> Env.define_locally class_stack_env x t)
+        (fun (x, t, _) -> Env.define_locally class_stack_env x t)
         c.attributes;
-      Env.define_locally class_stack_env "this" (TClass c.class_name);
+      Env.define_locally class_stack_env "this" (TClass (c.class_name, []));
       let typed_method m =
         let method_stack = Env.new_env class_stack_env in
         List.iter (fun (x, t) -> Env.define_locally method_stack x t) m.locals;
@@ -270,6 +284,7 @@ let typecheck_prog (p : program) : program =
 
       {
         class_name = c.class_name;
+        generics = [];
         attributes = c.attributes;
         methods = List.map typed_method c.methods;
         parent = c.parent;

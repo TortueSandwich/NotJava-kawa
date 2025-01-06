@@ -3,7 +3,7 @@
 
 (menhir
  (modules kawaparser)
- (flags )
+ (flags -v)
  (infer true))
 
 (executable

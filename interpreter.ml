@@ -7,7 +7,7 @@ and obj = { cls : string; fields : (string, value) Hashtbl.t }
 let typ_of_value = function
   | VInt _ -> TInt
   | VBool _ -> TBool
-  | VObj obj -> TClass obj.cls
+  | VObj obj -> TClass (obj.cls, [])
   | Null -> TVoid
 
 exception Error of string
@@ -44,7 +44,7 @@ let exec_prog (p : program) : unit =
   let alloc class_name =
     let c = findclass class_name in
     let vartable =
-      List.map (fun x -> (fst x, Null)) c.attributes
+      List.map (fun (name,_,_) -> (name, Null)) c.attributes
       |> List.to_seq |> Hashtbl.of_seq
     in
     { cls = class_name; fields = vartable }
@@ -136,7 +136,7 @@ let exec_prog (p : program) : unit =
           Hashtbl.find o.fields field_name
       | This -> Env.find env_stack "this"
       | New class_name -> VObj (alloc class_name)
-      | NewCstr (class_name, args) ->
+      | NewCstr (class_name, gene, args) ->
           let instance = alloc class_name in
           let n =
             eval_call "constructor" instance

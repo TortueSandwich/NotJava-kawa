@@ -30,6 +30,7 @@
         "as",       AS;
         "instanceof",  INSTANCEOF;
         (* "impl",     IMPL; *)
+        "generic",   GENERIC;
       ] ;
     fun s ->
       try  Hashtbl.find h s
@@ -86,6 +87,7 @@
     | AS -> violet^"as"
     | THIS -> orange ^"this"
     | INSTANCEOF -> violet^"instanceof"
+    | GENERIC -> bleu^"generic"
     (* | IMPL -> violet^"impl" *)
 
     | TINT -> bleu^"int"
@@ -94,6 +96,11 @@
 
     (* | _ -> "UNKNOWN"  *)
     in t ^"\027[0m"    
+
+  let type_context = ref false
+
+  let is_type_context () = !type_context
+  let set_type_context b = type_context := b
 }
 
 let digit = ['0'-'9']
@@ -126,9 +133,9 @@ rule token = parse
   | "=" {  AFFECT }
   | "!=" {  NEQ }
 
-  | "<" {  LT }
+  | "<" { LT }
   | "<=" {  LEQ }
-  | ">" {  GT }
+  | ">" { GT } 
   | ">=" {  GEQ }
   | "&&" {  AND }
   | "||" {  OR }

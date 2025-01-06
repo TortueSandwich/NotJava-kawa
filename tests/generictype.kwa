@@ -1,0 +1,21 @@
+class cons<t> {
+    attribute t elem;
+
+    method void constructor(t elem) {
+        this.elem = elem;
+    }
+
+    method t getElem() {
+        return this.elem;
+    }
+}
+
+
+main {
+    var generic cons{int} c1 = new generic cons{int}(10);
+
+    var generic cons{bool} c2 = new generic cons{bool}(true);
+
+    print(c1.getElem()); 
+    print(c2.getElem());
+}
