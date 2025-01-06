@@ -157,6 +157,7 @@ let rec string_of_expr (e : expr) : string =
   | NewCstr (c, _) -> fmt "%s" c
   | MethCall (e1, c, el) -> fmt "%s" c
   | NewArray (t, n) -> fmt "new %s%s" (string_of_typ t) (List.fold_left (fun acc x -> acc ^ "[" ^ (string_of_expr x) ^ "]") "" n)
+  | SuperCall(c, el) -> fmt "super.%s" c
 and string_of_unop unop = match unop with 
   Opp -> "Opp" | Not -> "Not" 
   | TypeCast (newType) -> "TypeCast("^( string_of_typ newType) ^ ")"
