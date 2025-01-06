@@ -39,16 +39,16 @@ let rec expr_to_dot with_id (e : expr) =
       let c = create_connection with_id m_id in
       (currnode :: m_nodes, c :: m_connections)
   | This -> ([ create_node with_id "this" ], [])
-  | New s ->
+  | New (s, g) ->
       let currnode = create_node with_id "new" in
       let c_id = fresh_id () in
       let cls_node = create_node c_id s in
       let con = create_connection with_id c_id in
       ([ currnode; cls_node ], [ con ])
-  | NewCstr (s, l) ->
+  | NewCstr (s, gene, l) ->
       let currnode = create_node with_id "newCstr" in
       let c_id = fresh_id () in
-      let cls_node = create_node c_id s in
+      let cls_node = create_node c_id (s^ List.fold_left (fun acc x -> acc ^ string_of_typ x) "" gene) in
       let con = create_connection with_id c_id in
       let argnodes, argcon =
         create_node_and_connections with_id l ~ordered:true

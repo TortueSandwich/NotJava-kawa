@@ -7,7 +7,7 @@ and obj = { cls : string; fields : (string, value) Hashtbl.t }
 let rec typ_of_value = function
   | VInt _ -> TInt
   | VBool _ -> TBool
-  | VObj obj -> TClass obj.cls
+  | VObj obj -> TClass (obj.cls, [])
   | VArray v -> TArray (typ_of_value v.(0))
   | Null -> TVoid
 
@@ -75,7 +75,7 @@ let exec_prog (p : program) : unit =
   let alloc class_name =
     let c = findclass class_name in
     let vartable =
-      List.map (fun x -> (fst x, Null)) c.attributes
+      List.map (fun (name,_) -> (name, Null)) c.attributes
       |> List.to_seq |> Hashtbl.of_seq
     in
     { cls = class_name; fields = vartable }
@@ -184,8 +184,8 @@ let exec_prog (p : program) : unit =
           | _ -> Typechecker.error ((string_of_expr e) ^ " is not an array")
           )
       | This -> Env.find env_stack "this"
-      | New class_name -> VObj (alloc class_name)
-      | NewCstr (class_name, args) ->
+      | New (class_name, g) -> VObj (alloc class_name)
+      | NewCstr (class_name, gene, args) ->
           let instance = alloc class_name in
           let n =
             eval_call "constructor" instance

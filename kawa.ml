@@ -5,19 +5,22 @@
 (* Types déclarés pour les attributs, pour les variables, et pour les
    paramètres et résultats des méthodes. *)
 
-type typ = TVoid | TInt | TBool | TClass of string | TArray of typ
+type typ = TVoid | TInt | TBool | TClass of string * typ list | TArray of typ
 
 let rec typ_of_string = function
   | "int" -> TInt
   | "bool" -> TBool
   | "void" -> TVoid
-  | s->if Tools.is_valid_array_string s then TArray (typ_of_string (String.sub s 0 ((String.length s) - 2))) else TClass s
+  | s->if Tools.is_valid_array_string s then TArray (typ_of_string (String.sub s 0 ((String.length s) - 2))) else TClass (s,[])
 
 let rec string_of_typ = function
   | TVoid -> "void"
   | TInt -> "int"
   | TBool -> "bool"
-  | TClass c -> c
+  | TClass(c,l) -> c ^ "{" ^ 
+  (* :if Option.is_some l then string_of_typ (Option.get l) else "" *)
+  List.fold_left (fun acc x -> acc  ^ (string_of_typ x) ^ ", ") "" l 
+  ^ "}"
   | TArray t -> let rec aux t acc= 
                       match t with 
                       TArray t -> aux t ("[]"^acc) 
@@ -56,8 +59,8 @@ and expr_ =
   (* Objet courant *)
   | This
   (* Création d'un nouvel objet *)
-  | New of string
-  | NewCstr of string * expr list
+  | New of string * typ list
+  | NewCstr of string * typ list * expr list
   (* Appel de méthode *)
   | MethCall of expr * string * expr list
   (* Appel à super*)
@@ -115,6 +118,7 @@ type method_def = {
    paramètre implicite this. *)
 type class_def = {
   class_name : string;
+  generics : string list;
   attributes : (string * typ) list;
   methods : method_def list;
   parent : string option;
@@ -153,9 +157,9 @@ let rec string_of_expr (e : expr) : string =
         (string_of_expr e2)
   | Get m -> "Get(" ^ (string_of_mem m) ^")"
   | This -> "This"
-  | New c -> fmt "%s" c
-  | NewCstr (c, _) -> fmt "%s" c
-  | MethCall (e1, c, el) -> fmt "%s" c
+  | New (c, gen) -> fmt "%s" c
+  | NewCstr (c,_ ,_) -> fmt "%s" c
+  | MethCall (e1, c, el) -> (string_of_expr e1) ^ (fmt "%s" c) ^ "(...)"
   | NewArray (t, n) -> fmt "new %s%s" (string_of_typ t) (List.fold_left (fun acc x -> acc ^ "[" ^ (string_of_expr x) ^ "]") "" n)
   | SuperCall(c, el) -> fmt "super.%s" c
 and string_of_unop unop = match unop with 

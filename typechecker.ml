@@ -54,12 +54,12 @@ let check_subtype objective curr (find_class_def: string -> class_def)=
   let rec aux objective curr (find_class_def : string -> class_def) =
   if objective = curr then ()
   else match curr with
-  | TClass name -> 
+  | TClass (name, _) -> 
       let classdef = find_class_def name in
       begin match classdef.parent with
       | Some parentname -> 
           let parentclsdef = find_class_def parentname in
-          aux objective (TClass parentclsdef.class_name) find_class_def
+          aux objective (TClass (parentclsdef.class_name, [])) find_class_def
       | None -> error ("No parent class found for " ^ name)
       end
   | _ -> error ("Cannot check subtype for primitive type: " ^ (Kawa.string_of_typ curr))
@@ -87,7 +87,34 @@ let find_method_def meth_name methods =
      | Some closest -> ", did you mean " ^ closest ^ " ?\n"
      | None -> ""))
 
-let objname_of_typ = function TClass clsname -> clsname | _ -> assert false
+let objname_of_typ = function TClass (clsname, gener) -> clsname | _ -> assert false
+
+let rec realtypeofgeneric clssdef genericstypes vartype = 
+  let create_hashtbl keys values =
+    let table = Hashtbl.create (List.length keys) in
+    (try
+    List.iter2 (fun key value -> Hashtbl.add table key value) keys values;
+    with _ -> print_endline "err"
+      );
+    table
+  in 
+  let table = create_hashtbl clssdef.generics genericstypes in
+  let res = match vartype with
+    | TClass(pramnametype, _) -> 
+       (Hashtbl.find_opt table pramnametype |> Option.value ~default:vartype) 
+    | _ -> vartype
+  in 
+  let res = match res with
+  | TClass(n, g) -> 
+    TClass(n, 
+    List.map (fun x ->  match x with
+      | TClass(pramnametype, _) -> realtypeofgeneric clssdef genericstypes x
+      | _ -> x
+      ) 
+      g)
+  | _ -> res
+  in 
+    res
 
 let keys_of_map map : string list =
   Hashtbl.fold (fun key _ acc -> key :: acc) map []
@@ -103,6 +130,7 @@ let typecheck_prog (p : program) : program =
   in
 
   let rec check_expr (e : expr) env_stack : expr =
+    (* print_endline ("typechheckexpr : " ^ string_of_expr e); *)
     match e.expr with
     | Int _ -> e
     | Bool _ -> e
@@ -148,7 +176,7 @@ let typecheck_prog (p : program) : program =
             check_eq_type TBool typed_e1.annot;
             check_eq_type TBool typed_e2.annot;
             {annot = TBool ; expr =  Binop(u , typed_e1, typed_e2); loc = e.loc})
-    | Get m -> {annot =  type_mem_access m env_stack ; expr = e.expr; loc = e.loc}
+    | Get m -> {annot = type_mem_access m env_stack ; expr = e.expr; loc = e.loc}
     | This -> begin 
         try
           let c = Env.find env_stack "this" in
@@ -156,31 +184,46 @@ let typecheck_prog (p : program) : program =
         with Not_found -> error ("Class not found: " ^ "this")
     end
 
-    | New class_name -> 
+    | New (class_name, generics) -> 
       ignore(find_class_def class_name);     (*checks existance*)
-      {annot = TClass class_name ; expr = e.expr; loc = e.loc}
-    | NewCstr (class_name, args) ->
+      {annot = TClass (class_name, generics) ; expr = e.expr; loc = e.loc}
+    | NewCstr (class_name, genrics ,args) ->
         let defclass = find_class_def class_name in
         let constructor = find_method_def "constructor" defclass.methods in
         let param_types = List.map snd constructor.params in
         let arg_types =
           List.map (fun arg -> (check_expr arg env_stack).annot) args
         in
-        List.iter2 check_subtype param_types arg_types;
-        { annot = TClass class_name; expr = e.expr; loc = e.loc }
+        let check_subtype_spe paramt argt =
+          let real = realtypeofgeneric defclass genrics paramt in
+          check_subtype real argt
+        in
+        List.iter2 check_subtype_spe param_types arg_types;
+        { annot = TClass (class_name, genrics); expr = e.expr; loc = e.loc }
     | MethCall (obj, meth_name, args) ->
         let typed_obj = check_expr obj env_stack in
-
         let typcls = objname_of_typ typed_obj.annot in
         let defclass = find_class_def typcls in
         let definterfaces = get_interfaces_from_class typcls in 
         let methodeu = find_method_def meth_name (defclass.methods@(List.filter (fun x -> x.default = true) (List.flatten (List.map (fun inter-> inter.methods) definterfaces)))) in
         let param_types = List.map snd methodeu.params in
         let typed_args = List.map (fun arg -> check_expr arg env_stack) args in
-        List.iter2 check_subtype param_types
+        
+        
+        let genapplication = match typed_obj.annot with 
+          | TClass (_, g) -> g
+          | _ -> assert false
+        in
+        
+        let check_subtype_spe paramt argt =
+          let real = realtypeofgeneric defclass genapplication paramt in
+          check_subtype real argt
+        in
+        List.iter2 check_subtype_spe param_types
           (List.map (fun arg -> arg.annot) typed_args);
+        let forreal = realtypeofgeneric defclass genapplication methodeu.return in
         {
-          annot = methodeu.return;
+          annot = forreal;
           expr = MethCall (typed_obj, meth_name, typed_args); loc = e.loc;
         }
       
@@ -223,10 +266,20 @@ let typecheck_prog (p : program) : program =
         ))
         end
     | Field (obj, field_name) ->
-        let cls_name = objname_of_typ (check_expr obj stack_env).annot in
+        let objtpye = (check_expr obj stack_env).annot in
+        let cls_name = objname_of_typ objtpye in
         let class_def = find_class_def cls_name in
+        let genericsapplication = match objtpye with 
+        | TClass(_, g) -> g
+        | _ -> assert false
+        in
         let rec find_familly c =
-          try List.assoc field_name c.attributes
+          try 
+            let (_,res) = List.find (fun (k, _) -> k = field_name) c.attributes in
+            let res = realtypeofgeneric class_def genericsapplication res in (
+              res
+            )
+            (* List.assoc field_name c.attributes *)
           with Not_found -> (
             match c.parent with
             | Some parentname ->
@@ -250,6 +303,7 @@ let typecheck_prog (p : program) : program =
 
   and check_instr i ret stack_env : instr =
     try
+      (* print_endline ("typechheck : " ^ string_of_instr i.instr); *)
     match i.instr with
     | Print e ->
         let typed_e = check_expr e stack_env in
@@ -291,8 +345,7 @@ let typecheck_prog (p : program) : program =
         {instr = Declare (varnames, t, None); loc=i.loc}
     | Declare (varnames, t, Some v) ->
         let f x =
-          if Env.is_declared_locally stack_env x then
-            (* exec (Set (Var x, v)) stack_env *) ()
+          if Env.is_declared_locally stack_env x then ()
           else Env.define_locally stack_env x t
         in
         List.iter f varnames;
@@ -327,7 +380,7 @@ let typecheck_prog (p : program) : program =
       List.iter
         (fun (x, t) -> Env.define_locally class_stack_env x t)
         c.attributes;
-      Env.define_locally class_stack_env "this" (TClass c.class_name);
+      Env.define_locally class_stack_env "this" (TClass (c.class_name, List.map (fun x -> TClass(x, [])) c.generics));
       let typed_method m =
         let method_stack = Env.new_env class_stack_env in
         List.iter (fun (x, t) -> Env.define_locally method_stack x t) m.locals;
@@ -345,6 +398,7 @@ let typecheck_prog (p : program) : program =
       List.iter (class_match_interface c) (List.map find_interface_def c.implemented_interfaces) ;
       {
         class_name = c.class_name;
+        generics = c.generics;
         attributes = c.attributes;
         methods = List.map typed_method c.methods;
         parent = c.parent;

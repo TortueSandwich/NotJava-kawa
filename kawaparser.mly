@@ -23,6 +23,8 @@
 %token TINT TBOOL TVOID
 %token INSTANCEOF, AS
 
+%token GENERIC
+
 %left OR
 %left AND
 %nonassoc EQ NEQ
@@ -81,6 +83,11 @@ instruction:
 | x=var_decl { let (a,b,c) = x in {instr = Declare(a,b,c); loc = $loc  }}
 ;
 
+var_decl:
+| VAR t=kawatype vars=separated_nonempty_list(COMA, IDENT) value=affectation? semi_handled { (vars, t, value) }
+;
+
+
 semi_handled : 
 | error {raise (ParserError("point-virgule manquant"))}
 | SEMI { () }
@@ -105,8 +112,10 @@ expression:
 | o=unop e=expression %prec UNARY_OP {{annot = TVoid ; expr = Unop(o, e) ; loc = $loc}}
 | e=expression o=binop f=expression { {annot = TVoid ; expr = Binop(o,e,f) ; loc = $loc} }
 | LPAR e=expression rpar_handled { e }
-| NEW i=IDENT {{annot = TClass(i) ; expr =  New(i) ; loc = $loc}}
-| NEW i=IDENT LPAR l=separated_list(COMA,expression) rpar_handled {{annot = TClass(i) ; expr = NewCstr(i, l) ; loc = $loc}}
+| NEW i=IDENT {{annot = TClass(i, []) ; expr =  New(i, []) ; loc = $loc}}
+| NEW GENERIC i=IDENT gt=generictype {{annot = TClass(i, gt) ; expr =  New(i, gt) ; loc = $loc}}
+| NEW i=IDENT LPAR l=separated_list(COMA,expression) rpar_handled {{annot = TClass(i, []) ; expr = NewCstr(i, [], l) ; loc = $loc}}
+| NEW GENERIC i=IDENT gt=generictype LPAR l=separated_list(COMA,expression) rpar_handled {{annot = TClass(i, gt) ; expr = NewCstr(i, gt, l) ; loc = $loc}}
 | e=expression POINT s=IDENT LPAR l=separated_list(COMA,expression) rpar_handled {{annot = TVoid ; expr = MethCall(e,s,l) ; loc = $loc}}
 | SUPER POINT s=IDENT LPAR l=separated_list(COMA,expression) rpar_handled {{annot = TVoid ; expr = SuperCall(s,l) ; loc = $loc}}
 | e=expression AS t=kawatype {{annot = TVoid ; expr = Unop(TypeCast(t), e) ; loc = $loc}}
@@ -129,10 +138,17 @@ affectation:
 ;
 
 class_def: 
-| CLASS class_name=IDENT parent=extends? implemented_interfaces=implements BEGIN attributes=list(attr_decl) methods=list(method_def) end_handled {
-   { class_name; attributes; methods; parent; implemented_interfaces}  
+| CLASS class_name=IDENT 
+generics=gen_args?
+ parent=extends? implemented_interfaces=implements BEGIN attributes=list(attr_decl) methods=list(method_def) end_handled {
+  let generics : string list = (Option.value ~default:[] generics) in
+   { class_name; generics; attributes; methods; parent; implemented_interfaces}  
 }
 ;
+
+gen_args :
+| LT t=separated_list(COMA,IDENT) GT {t}
+
 
 extends : 
 | EXTENDS parent_name=IDENT {parent_name}
@@ -151,8 +167,11 @@ interface_def:
 
 
 attr_decl:
-| ATTRIBUTE t=kawatype s=IDENT semi_handled {(s,t)}
+| ATTRIBUTE t=kawatype s=IDENT semi_handled {
+  (s,t)
+  }
 ;
+
 
 param:
 | t=kawatype name=IDENT { (name, t) }
@@ -198,8 +217,13 @@ def_sans_default:
 | TINT {TInt}
 | TBOOL {TBool}
 | TVOID {TVoid}
-| s=IDENT {TClass(s)}
+| s=IDENT {TClass(s,[])}
+| GENERIC s=IDENT t=generictype {TClass(s,t)} 
 ;
+
+generictype : 
+| BEGIN t=separated_list(COMA,kawatype) END {t}
+
 
 %inline kawatype:
 | t=base_types { t }
