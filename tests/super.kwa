@@ -28,22 +28,16 @@ class triple extends paire {
     return this.x + this.y + this.z;
   }
 
-  method int prod() {
-    return this.x * this.y * this.z;
+  method int somme_x_y() {
+    return super.somme();
   }
 }
 
 main {
   t = new triple(3, 4, 5);
-  p = t as paire; 
-  print(p.somme());
-  
-  t2 = p as triple;
-  print(t2.somme());
+  print(t.somme());
+  print(t.somme_x_y());
 
-  // Affiche 12 12
+  // Affiche 12 7 
 
-  p2 = new paire (1,2);
-  t = p2 as triple;
-  //will bug 
 }

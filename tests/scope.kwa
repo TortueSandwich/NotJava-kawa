@@ -1,0 +1,9 @@
+main {
+    print(1);
+    {
+        var int x = 2;
+        print(x);
+    }
+    print(x);
+    print(3);
+}

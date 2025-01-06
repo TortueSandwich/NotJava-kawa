@@ -5,13 +5,14 @@ class point {
   attribute int y;
 
   method void constructor(int a, int b) {
+    var int c = 10;
     this.x = a;
     this.y = b;
+    print(c);
   }
 
   method int test() {
-    var int a;
-    a = this.x+this.y;
+    var int a = this.x+this.y;
     return a*a;
   }
 }

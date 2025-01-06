@@ -4,12 +4,16 @@ var oue maisoui = new oue();
 
 class oue {
     method void constructor() {}
-    method void test() {}
+    method void test() {
+      print(420);
+    }
 }
 
 main {
   print(h);
   print(x+y+z);
-  oue.test();
-  // affiche 5 puis 15 puis 420
+  var int k = 2025;
+  maisoui.test();
+  print(k);
+  // affiche 5 puis 15 puis 420 et 2025
 }

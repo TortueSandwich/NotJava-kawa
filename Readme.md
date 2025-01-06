@@ -14,7 +14,7 @@ run using :
 
 exemples d'utilisation :
 ```sh
-./kawai.exe ./test/var.kwa
+./kawai.exe ./tests/var.kwa
 ```
 ```sh
 dune build && ./kawai.exe -s

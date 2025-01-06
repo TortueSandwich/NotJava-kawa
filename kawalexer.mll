@@ -4,6 +4,8 @@
 
   exception Error of string
 
+  let last_lexbuf= ref ""
+
   let keyword_or_ident =
     let h = Hashtbl.create 17 in
     List.iter (fun (s, k) -> Hashtbl.add h s k)
@@ -13,10 +15,13 @@
         "if",       IF;
         "else",     ELSE;
         "while",    WHILE;
+        "interface" , INTERFACE;
         "class",    CLASS;
         "extends",  EXTENDS;
+        "implements",  IMPLEMENTS;
         "attribute",ATTRIBUTE;
         "method",   METHOD;
+        "default" , DEFAULT;
         "new",      NEW;
         "true",     BOOL(true);
         "false",    BOOL(false);
@@ -25,6 +30,11 @@
         "int",      TINT;
         "bool",     TBOOL;
         "void",     TVOID;
+        "as",       AS;
+        "instanceof",  INSTANCEOF;
+        "super" ,   SUPER;
+        (* "impl",     IMPL; *)
+        "generic",   GENERIC;
       ] ;
     fun s ->
       try  Hashtbl.find h s
@@ -41,9 +51,9 @@
     | PRINT -> violet^"print"
     | MAIN -> "\027[34mmain"
     | VAR -> violet^"var "
-    | IDENT(s) -> Printf.sprintf "\027[36m%s" s
-    | INT(n) -> Printf.sprintf "\027[96m%d" n
-    | BOOL(b:bool) -> Printf.sprintf "\027[96m%b" b
+    | IDENT(s) ->  "\027[36mId("^s^")"
+    | INT(n) -> "\027[96m" ^ (string_of_int n)
+    | BOOL(b:bool) -> "\027[96m" ^ (string_of_bool b)
     | SEMI -> jaune^";"
     | LPAR -> jaune^"("
     | RPAR -> jaune^")"
@@ -73,71 +83,35 @@
     | IF -> violet^"if"
     | ELSE -> violet^"else"
     | CLASS -> violet^"class"
+    | INTERFACE -> violet^"interface"
     | EXTENDS -> violet^"extends"
+    | IMPLEMENTS -> violet^"implements"
     | RETURN -> violet^"return"
     | NEW -> violet^"new"
     | ATTRIBUTE -> violet^"attribute"
     | METHOD -> violet^"method"
+    | AS -> violet^"as"
     | THIS -> orange ^"this"
+    | INSTANCEOF -> violet^"instanceof"
+    | GENERIC -> bleu^"generic"
+    | DEFAULT -> violet^"default"
+    (* | IMPL -> violet^"impl" *)
 
     | TINT -> bleu^"int"
     | TBOOL -> bleu^"bool"
     | TVOID -> bleu^"void"
-    
+
+    | RBR -> jaune^"]"
+    | LBR -> jaune^"["
+    | SUPER -> orange^"super"
+
     (* | _ -> "UNKNOWN"  *)
-    in t ^"\027[0m"
+    in t ^"\027[0m"    
 
-  let token_to_string_debug s = 
-    let t = match s with
-    | PRINT -> "PRINT"
-    | MAIN -> "MAIN"
-    | VAR -> "VAR"
-    | IDENT(s) -> Printf.sprintf "IDENT(%s)" s
-    | INT(n) -> Printf.sprintf "IDENT(%d)" n
-    | BOOL(b:bool) -> Printf.sprintf "BOOL(%b)" b
-    | SEMI -> "SEMI"
-    | LPAR -> "LPAR"
-    | RPAR -> "RPAR"
-    | BEGIN -> "BEGIN"
-    | END -> "END"
-    | COMA -> "COMA"
-    | PLUS -> "PLUS"
-    | MINUS -> "MINUS"
-    | TIMES -> "TIMES"
-    | DIV -> "DIV"
-    | EQ -> "EQ"
-    | NEQ -> "NEQ"
-    | MOD -> "MOD"
-    | AFFECT -> "AFFECT"
-    | POINT -> "POINT"
-    | EXCLAMATION -> "EXCLAMATION"
+  let type_context = ref false
 
-    | LT -> "LT"
-    | LEQ -> "LEQ"
-    | GT -> "GT"
-    | GEQ -> "GEQ"
-    | AND -> "AND"
-    | OR -> "OR"
-
-    | EOF -> "EOF"
-    | WHILE -> "WHILE"
-    | IF -> "IF"
-    | ELSE -> "ELSE"
-    | CLASS -> "CLASS"
-    | EXTENDS -> "EXTENDS"
-    | RETURN -> "RETURN"
-    | NEW -> "NEW"
-    | ATTRIBUTE -> "ATTRIBUTE"
-    | METHOD -> "METHOD"
-    | THIS -> "THIS"
-
-    | TINT -> bleu^"TINT"
-    | TBOOL -> bleu^"TBOOL"
-    | TVOID -> bleu^"TVOID"
-    
-    (* | _ -> "UNKNOWN" *)
-    in t 
-    
+  let is_type_context () = !type_context
+  let set_type_context b = type_context := b
 }
 
 let digit = ['0'-'9']
@@ -146,40 +120,45 @@ let alpha = ['a'-'z' 'A'-'Z']
 let ident = ['a'-'z' '_'] (alpha | '_' | digit)*
 
 rule token = parse
-  | ['\n']            { new_line lexbuf; token lexbuf }
-  | [' ' '\t' '\r']+  { token lexbuf }
+  | ['\n']            {  new_line lexbuf; token lexbuf }
+  | [' ' '\t' '\r']+  {  token lexbuf }
 
-  | "//" [^ '\n']* "\n"  { new_line lexbuf; token lexbuf }
-  | "/*"                 { comment lexbuf; token lexbuf }
+  | "//" [^ '\n']* "\n"  {  new_line lexbuf; token lexbuf }
+  | "/*"                 {  comment lexbuf; token lexbuf }
 
-  | number as n  { INT(int_of_string n) }
-  | ident as id  { keyword_or_ident id }
+  | number as n  {  INT(int_of_string n) }
+  | ident as id  {  keyword_or_ident id }
 
-  | ";"  { SEMI }
-  | "("  { LPAR }
-  | ")"  { RPAR }
-  | "{"  { BEGIN }
-  | "}"  { END }
+  | ";"  {  SEMI }
+  | "("  {  LPAR }
+  | ")"  {  RPAR }
+  | "{"  {  BEGIN }
+  | "}"  {  END }
 
-  | "+"  { PLUS }
-  | "-"  { MINUS }
-  | "*"  { TIMES }
-  | "/"  { DIV }
-  | "%"  { MOD }
-  | "==" { EQ }
-  | "=" { AFFECT }
-  | "!=" { NEQ }
+  | "+"  {  PLUS }
+  | "-"  {  MINUS }
+  | "*"  {  TIMES }
+  | "/"  {  DIV }
+  | "%"  {  MOD }
+  | "==" {  EQ }
+  | "=" {  AFFECT }
+  | "!=" {  NEQ }
 
   | "<" { LT }
-  | "<=" { LEQ }
-  | ">" { GT }
-  | ">=" { GEQ }
-  | "&&" { AND }
-  | "||" { OR }
-  | "!" { EXCLAMATION }
+  | "<=" {  LEQ }
+  | ">" { GT } 
+  | ">=" {  GEQ }
+  | "&&" {  AND }
+  | "||" {  OR }
+  | "!" {  EXCLAMATION }
 
-  | '.' { POINT }
-  | ',' { COMA }
+  | '.' {  POINT }
+  | ',' {  COMA }
+
+  | "instanceof" {  INSTANCEOF }
+
+  | '[' {  LBR }
+  | ']' {  RBR }
 
   | _    { raise (Error ("unknown character : " ^ lexeme lexbuf)) }
   | eof  { let tok = EOF in tok }

@@ -1,0 +1,87 @@
+class cons<t> {
+    attribute t elem;
+
+    method void constructor(t elem) {
+        this.elem = elem;
+    }
+
+    method t getElem() {
+        return this.elem;
+    }
+
+    method void setElem(t elem) {
+        this.elem = elem;
+    }
+}
+
+class pair<a, b> {
+    attribute a first;
+    attribute b second;
+
+    method void constructor(a first, b second) {
+        this.first = first;
+        this.second = second;
+    }
+
+    method a getFirst() {
+        return this.first;
+    }
+
+    method b getSecond() {
+        return this.second;
+    }
+}
+
+class solo<t> {
+    attribute t terme;
+
+    method t get() {
+        return this.terme;
+    }
+}
+
+main {
+    var generic cons{int} c1 = new generic cons{int}(10);
+    print(c1.getElem()); 
+
+    c1.setElem(20);
+    print(c1.getElem());
+
+    var generic cons{bool} c2 = new generic cons{bool}(false);
+    if (c2.getElem()) {
+        print(1); 
+    } else {
+        print(0); 
+    }
+
+    var generic pair{int, int} p1 = new generic pair{int, int}(3, 4);
+    print(p1.getFirst());  
+    print(p1.getSecond()); 
+
+    var generic cons{generic pair{int, int}} c3 = new generic cons{generic pair{int, int}}(p1);
+    print(c3.getElem().getFirst());  
+    print(c3.getElem().getSecond()); 
+
+    var generic cons{generic cons{int}} nestedCons = new generic cons{generic cons{int}}(c1);
+    print(nestedCons.getElem().getElem()); 
+
+    var int i = 1;
+    while (i <= 5) {
+        var generic cons{int} c = new generic cons{int}(i * 10);
+        print(c.getElem()); 
+        i = i + 1;
+    }
+
+    var generic cons{generic pair{int, generic cons{int}}} complexCons =
+        new generic cons{generic pair{int, generic cons{int}}}(
+            new generic pair{int, generic cons{int}}(42, c1)
+        );
+
+    print(complexCons.getElem().getFirst());          
+    print(complexCons.getElem().getSecond().getElem());
+
+    var generic solo{int} s = new generic solo{int};
+    s.terme = 15;
+    print(s.terme);
+    // Affiche 10, 20, 0, 3, 4, 3, 4, 20, 10, 20, 30, 40, 50, 42, 20, 15
+}
