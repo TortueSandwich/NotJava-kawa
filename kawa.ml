@@ -19,7 +19,7 @@ let rec string_of_typ = function
   | TBool -> "bool"
   | TClass(c,l) -> c ^ "<" ^ 
   (* :if Option.is_some l then string_of_typ (Option.get l) else "" *)
-  List.fold_left (fun acc x -> acc ^ ",") "" l 
+  List.fold_left (fun acc x -> acc  ^ (string_of_typ x) ^ ", ") "" l 
   ^ ">"
 
 
@@ -154,7 +154,7 @@ let rec string_of_expr (e : expr) : string =
   | This -> "This"
   | New c -> fmt "%s" c
   | NewCstr (c,_ ,_) -> fmt "%s" c
-  | MethCall (e1, c, el) -> fmt "%s" c
+  | MethCall (e1, c, el) -> (string_of_expr e1) ^ (fmt "%s" c) ^ "(...)"
 and string_of_mem = function
     | Var name -> name
     | Field (obj, field_name) -> (

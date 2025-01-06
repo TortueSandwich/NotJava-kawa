@@ -123,7 +123,7 @@ let typecheck_prog (p : program) : program =
             check_eq_type TBool typed_e1.annot;
             check_eq_type TBool typed_e2.annot;
             {annot = TBool ; expr =  Binop(u , typed_e1, typed_e2); loc = e.loc})
-    | Get m -> {annot =  type_mem_access m env_stack ; expr = e.expr; loc = e.loc}
+    | Get m -> {annot = type_mem_access m env_stack ; expr = e.expr; loc = e.loc}
     | This -> begin 
         try
           let c = Env.find env_stack "this" in
@@ -157,6 +157,7 @@ let typecheck_prog (p : program) : program =
         { annot = TClass (class_name, genrics); expr = e.expr; loc = e.loc }
     | MethCall (obj, meth_name, args) ->
         let typed_obj = check_expr obj env_stack in
+        print_endline (string_of_typ typed_obj.annot);
 
         let typcls = objname_of_typ typed_obj.annot in
         let defclass = find_class_def typcls in
@@ -165,8 +166,24 @@ let typecheck_prog (p : program) : program =
         let typed_args = List.map (fun arg -> check_expr arg env_stack) args in
         List.iter2 check_subtype param_types
           (List.map (fun arg -> arg.annot) typed_args);
+        let create_hashtbl keys values =
+          let table = Hashtbl.create (List.length keys) in
+          List.iter2 (fun key value -> Hashtbl.add table key value) keys values;
+          table
+        in 
+        let genapplication = match typed_obj.annot with 
+          | TClass (_, g) -> g
+          | _ -> assert false
+        in
+        let table = create_hashtbl defclass.generics genapplication in
+        let genericname = match methodeu.return with
+        | TClass(name, []) -> name
+        | _ -> assert false
+        in
+        let retype = Hashtbl.find table genericname
+        in
         {
-          annot = methodeu.return;
+          annot = retype;
           expr = MethCall (typed_obj, meth_name, typed_args); loc = e.loc;
         }
   and type_mem_access m stack_env : typ =
@@ -204,6 +221,7 @@ let typecheck_prog (p : program) : program =
     try
     match i.instr with
     | Print e ->
+      print_endline (string_of_expr e);
         let typed_e = check_expr e stack_env in
         check_eq_type TInt typed_e.annot;
         {instr=Print typed_e; loc= i.loc}
