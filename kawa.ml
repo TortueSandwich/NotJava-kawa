@@ -60,6 +60,9 @@ and expr_ =
   | NewCstr of string * expr list
   (* Appel de méthode *)
   | MethCall of expr * string * expr list
+  (* Appel à super*)
+  |SuperCall of string * expr list
+  (* Création d'un tableau *)
   (*Création d'un tableau*)
   | NewArray of typ * expr list   (*dimensions*)
 

@@ -32,6 +32,7 @@
         "void",     TVOID;
         "as",       AS;
         "instanceof",  INSTANCEOF;
+        "super" ,   SUPER;
         (* "impl",     IMPL; *)
       ] ;
     fun s ->
@@ -100,6 +101,7 @@
 
     | RBR -> jaune^"]"
     | LBR -> jaune^"["
+    | SUPER -> orange^"super"
 
     (* | _ -> "UNKNOWN"  *)
     in t ^"\027[0m"    

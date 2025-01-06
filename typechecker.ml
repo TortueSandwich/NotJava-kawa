@@ -183,6 +183,28 @@ let typecheck_prog (p : program) : program =
           annot = methodeu.return;
           expr = MethCall (typed_obj, meth_name, typed_args); loc = e.loc;
         }
+      
+      | SuperCall(meth_name, args) -> (
+        try
+        let c = Env.find env_stack "this" in
+        let defclass = find_class_def (objname_of_typ c) in
+        let parentdef = find_class_def (match defclass.parent with
+        | Some parentname -> parentname
+        | None -> error ("No parent class found for " ^ defclass.class_name ^ " cannot call super"))
+        in
+        let method_def = find_method_def meth_name parentdef.methods in
+        let param_types = List.map snd method_def.params in
+        let typed_args = List.map (fun arg -> check_expr arg env_stack) args in
+        List.iter2 check_subtype param_types
+          (List.map (fun arg -> arg.annot) typed_args);
+        {
+          annot = method_def.return;
+          expr = SuperCall(meth_name, typed_args); loc = e.loc;
+        }
+ 
+        with Not_found -> error ("Super cannot be called in main")
+        |     TypeError s -> error ("Super cannot be called, " ^ s ^ (report_bug e.loc (fst(e.loc)).pos_fname))
+      )
       | NewArray (t, n) ->
           let typed_n = List.map (fun x -> check_expr x env_stack) n in
           List.iter (fun x -> check_eq_type TInt x.annot) typed_n;
@@ -333,5 +355,5 @@ let typecheck_prog (p : program) : program =
   in
 
   let typed_seq = check_seq p.main TVoid (Env.new_env_stack ()) in
-  
+
   { classes = typed_classes;interfaces = p.interfaces ;globals = p.globals; main = typed_seq }

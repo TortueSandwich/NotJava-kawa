@@ -1,0 +1,43 @@
+var paire p;
+var triple t;
+var triple t2;
+var paire p2;
+
+class paire {
+  attribute int x;
+  attribute int y;
+
+  method void constructor(int x, int y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  method int somme() {
+    return this.x + this.y;
+  }
+}
+
+class triple extends paire {
+  attribute int z;
+
+  method void constructor(int x, int y, int z) {
+    this.x = x; this.y = y; this.z = z;
+  }
+
+  method int somme() {
+    return this.x + this.y + this.z;
+  }
+
+  method int somme_x_y() {
+    return super.somme();
+  }
+}
+
+main {
+  t = new triple(3, 4, 5);
+  print(t.somme());
+  print(t.somme_x_y());
+
+  // Affiche 12 7 
+
+}

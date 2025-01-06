@@ -198,6 +198,14 @@ let exec_prog (p : program) : unit =
       | MethCall (obj, meth_name, args) ->
           eval_call meth_name (evalo obj env_stack)
             (List.map (fun x -> eval x env_stack) args)
+      | SuperCall(meth_name, args) -> 
+        let vobj = Env.find env_stack "this" in
+        let obj = match vobj with VObj o -> o | _ -> assert false in
+        let parent = (findclass obj.cls).parent in
+        let parent_name = (match parent with Some p -> p | None -> assert false) in
+        let typecasted_obj = {cls = parent_name ; fields = obj.fields} in
+        eval_call meth_name typecasted_obj (List.map (fun x -> eval x env_stack) args)
+
       | NewArray (t, n) -> (
           let n = List.map (fun x -> eval x env_stack) n in
           create_array (List.map (fun x -> match x with VInt n -> if n > 0 then n else raise (Error("Size for dimension has to be > 0."^ report_bug e)) | _ -> Typechecker.error ("Size given for dimension is not integer."^report_bug e)) n) t ) 

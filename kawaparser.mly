@@ -14,7 +14,7 @@
 %token <int> INT
 %token <bool> BOOL
 %token <string> IDENT
-%token PRINT VAR IF ELSE WHILE CLASS INTERFACE ATTRIBUTE METHOD NEW THIS RETURN EXTENDS IMPLEMENTS DEFAULT  
+%token PRINT VAR IF ELSE WHILE CLASS INTERFACE ATTRIBUTE METHOD NEW THIS RETURN EXTENDS IMPLEMENTS DEFAULT SUPER
 %token AFFECT LPAR RPAR SEMI LBR RBR
 %token PLUS MINUS TIMES DIV MOD 
 %token LT LEQ GT GEQ AND OR EQ NEQ
@@ -108,6 +108,7 @@ expression:
 | NEW i=IDENT {{annot = TClass(i) ; expr =  New(i) ; loc = $loc}}
 | NEW i=IDENT LPAR l=separated_list(COMA,expression) rpar_handled {{annot = TClass(i) ; expr = NewCstr(i, l) ; loc = $loc}}
 | e=expression POINT s=IDENT LPAR l=separated_list(COMA,expression) rpar_handled {{annot = TVoid ; expr = MethCall(e,s,l) ; loc = $loc}}
+| SUPER POINT s=IDENT LPAR l=separated_list(COMA,expression) rpar_handled {{annot = TVoid ; expr = SuperCall(s,l) ; loc = $loc}}
 | e=expression AS t=kawatype {{annot = TVoid ; expr = Unop(TypeCast(t), e) ; loc = $loc}}
 | e=expression INSTANCEOF t=kawatype {  {annot = TBool ; expr = Unop(InstanceOf(t) , e) ; loc = $loc}  }
 | NEW t=base_types d=nonempty_list(dimension) { {annot = tarray_of_dim (List.length d) t ; expr = NewArray(t, d) ; loc = $loc} }
