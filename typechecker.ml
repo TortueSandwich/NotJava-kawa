@@ -203,7 +203,7 @@ let typecheck_prog (p : program) : program =
         }
  
         with Not_found -> error ("Super cannot be called in main")
-        |     TypeError s -> error ("Super cannot be called, " ^ s ^ (report_bug e.loc (fst(e.loc)).pos_fname))
+        |     TypeError s -> error ("Super cannot be called, " ^ s )
       )
       | NewArray (t, n) ->
           let typed_n = List.map (fun x -> check_expr x env_stack) n in
