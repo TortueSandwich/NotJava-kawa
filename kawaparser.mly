@@ -108,7 +108,8 @@ expression:
 | o=unop e=expression %prec UNARY_OP {{annot = TVoid ; expr = Unop(o, e) ; loc = $loc}}
 | e=expression o=binop f=expression { {annot = TVoid ; expr = Binop(o,e,f) ; loc = $loc} }
 | LPAR e=expression rpar_handled { e }
-| NEW i=IDENT {{annot = TClass(i, []) ; expr =  New(i) ; loc = $loc}}
+| NEW i=IDENT {{annot = TClass(i, []) ; expr =  New(i, []) ; loc = $loc}}
+| NEW GENERIC i=IDENT gt=generictype {{annot = TClass(i, gt) ; expr =  New(i, gt) ; loc = $loc}}
 | NEW i=IDENT LPAR l=separated_list(COMA,expression) rpar_handled {{annot = TClass(i, []) ; expr = NewCstr(i, [], l) ; loc = $loc}}
 | NEW GENERIC i=IDENT gt=generictype LPAR l=separated_list(COMA,expression) rpar_handled {{annot = TClass(i, gt) ; expr = NewCstr(i, gt, l) ; loc = $loc}}
 | e=expression POINT s=IDENT LPAR l=separated_list(COMA,expression) rpar_handled {{annot = TVoid ; expr = MethCall(e,s,l) ; loc = $loc}}
@@ -140,7 +141,7 @@ extends :
 
 attr_decl:
 | ATTRIBUTE t=kawatype s=IDENT semi_handled {
-  (s,t, [])
+  (s,t)
   }
 ;
 

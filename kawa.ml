@@ -17,10 +17,10 @@ let rec string_of_typ = function
   | TVoid -> "void"
   | TInt -> "int"
   | TBool -> "bool"
-  | TClass(c,l) -> c ^ "<" ^ 
+  | TClass(c,l) -> c ^ "{" ^ 
   (* :if Option.is_some l then string_of_typ (Option.get l) else "" *)
   List.fold_left (fun acc x -> acc  ^ (string_of_typ x) ^ ", ") "" l 
-  ^ ">"
+  ^ "}"
 
 
 type unop = Opp | Not | TypeCast of typ | InstanceOf of typ
@@ -53,7 +53,7 @@ and expr_ =
   (* Objet courant *)
   | This
   (* Création d'un nouvel objet *)
-  | New of string
+  | New of string * typ list
   | NewCstr of string * typ list * expr list
   (* Appel de méthode *)
   | MethCall of expr * string * expr list
@@ -106,7 +106,7 @@ type method_def = {
 type class_def = {
   class_name : string;
   generics : string list;
-  attributes : (string * typ * string list) list;
+  attributes : (string * typ) list;
   methods : method_def list;
   parent : string option;
 }
@@ -152,7 +152,7 @@ let rec string_of_expr (e : expr) : string =
         (string_of_expr e2)
   | Get m -> "Get(" ^ (string_of_mem m) ^")"
   | This -> "This"
-  | New c -> fmt "%s" c
+  | New (c, gen) -> fmt "%s" c
   | NewCstr (c,_ ,_) -> fmt "%s" c
   | MethCall (e1, c, el) -> (string_of_expr e1) ^ (fmt "%s" c) ^ "(...)"
 and string_of_mem = function

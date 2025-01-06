@@ -44,7 +44,7 @@ let exec_prog (p : program) : unit =
   let alloc class_name =
     let c = findclass class_name in
     let vartable =
-      List.map (fun (name,_,_) -> (name, Null)) c.attributes
+      List.map (fun (name,_) -> (name, Null)) c.attributes
       |> List.to_seq |> Hashtbl.of_seq
     in
     { cls = class_name; fields = vartable }
@@ -135,7 +135,7 @@ let exec_prog (p : program) : unit =
           let o = evalo obj env_stack in
           Hashtbl.find o.fields field_name
       | This -> Env.find env_stack "this"
-      | New class_name -> VObj (alloc class_name)
+      | New (class_name, g) -> VObj (alloc class_name)
       | NewCstr (class_name, gene, args) ->
           let instance = alloc class_name in
           let n =

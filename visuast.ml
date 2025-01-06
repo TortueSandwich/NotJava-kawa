@@ -39,7 +39,7 @@ let rec expr_to_dot with_id (e : expr) =
       let c = create_connection with_id m_id in
       (currnode :: m_nodes, c :: m_connections)
   | This -> ([ create_node with_id "this" ], [])
-  | New s ->
+  | New (s, g) ->
       let currnode = create_node with_id "new" in
       let c_id = fresh_id () in
       let cls_node = create_node c_id s in
