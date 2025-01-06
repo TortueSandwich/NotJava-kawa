@@ -128,11 +128,6 @@ dimension:
 ;
 
 
-
-var_decl:
-| VAR t=kawatype vars=separated_nonempty_list(COMA, IDENT) value=affectation? semi_handled { (vars, t, value) }
-;
-
 affectation:
 | AFFECT e=expression {e}
 ;
