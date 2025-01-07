@@ -32,7 +32,7 @@ let type_of_unop = function
 
 let type_of_binop = function
   | Add | Sub | Mul | Div | Rem -> TInt
-  | Lt | Le | Gt | Ge | Eq | Neq | And | Or -> TBool
+  | Lt | Le | Gt | Ge | Eq | Neq | And | Or | StructEq | NegStructEq-> TBool
 
 (** ctx, expected, actual *)
 let check_eq_type ?(context = "") expected actual =
@@ -175,8 +175,10 @@ let typecheck_prog (p : program) : program =
         | And | Or ->
             check_eq_type TBool typed_e1.annot;
             check_eq_type TBool typed_e2.annot;
-            {annot = TBool ; expr =  Binop(u , typed_e1, typed_e2); loc = e.loc})
-    | Get m -> {annot = type_mem_access m env_stack ; expr = e.expr; loc = e.loc}
+            {annot = TBool ; expr =  Binop(u , typed_e1, typed_e2); loc = e.loc}
+      | StructEq | NegStructEq -> try check_eq_type typed_e1.annot typed_e2.annot;  { annot = TBool; expr = Binop (u, typed_e1, typed_e2) ; loc = e.loc}
+                          with TypeError s ->  error ("Impossible to compare the two objects.\n" ^ s ^ report_bug e.loc (fst(e.loc)).pos_fname))
+    | Get m -> {annot = type_mem_access m env_stack ; expr = e.expr; loc = e.loc} 
     | This -> begin 
         try
           let c = Env.find env_stack "this" in
@@ -353,8 +355,7 @@ let typecheck_prog (p : program) : program =
         check_subtype t typedval.annot;
         {instr = Declare (varnames, t, Some typedval); loc=i.loc}
 
-      with TypeError s -> let f = (fst(i.loc)).pos_fname in
-      error (s ^ (report_bug i.loc f) )
+      with TypeError s -> error (s)
 
       
   and check_seq s ret tenv : seq =

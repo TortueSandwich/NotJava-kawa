@@ -1,0 +1,58 @@
+var paire p1;
+var triple t1;
+var triple t2;
+var paire p2;
+
+class paire {
+  attribute int x;
+  attribute int y;
+
+  method void constructor(int x, int y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  method int somme() {
+    return this.x + this.y;
+  }
+}
+
+class triple extends paire {
+  attribute int z;
+
+  method void constructor(int x, int y, int z) {
+    this.x = x; this.y = y; this.z = z;
+  }
+
+  method int somme() {
+    return this.x + this.y + this.z;
+  }
+
+  method int prod() {
+    return this.x * this.y * this.z;
+  }
+}
+
+main {
+  t1 = new triple(1, 2, 5);
+  t2 = new triple(1,2,5);
+
+  p1 = new paire(1,2);
+  p2 = new paire(1,3);
+  
+    if(t1===t2){
+        print(1);
+    }else{ print (0);}
+
+   if(p1=/=p2){
+        print(1);
+    }else{ print (0);}
+
+ //   if(t1===p1){  
+ //       print(0);                 bug au type check comme attendu
+ //   }else{ print (0);}
+
+    // affiche 1 1 
+  
+  
+}

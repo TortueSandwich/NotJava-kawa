@@ -65,6 +65,8 @@
     | TIMES -> vert^"*"
     | DIV -> vert^"/"
     | EQ -> vert^"=="
+    | STRUCTEQ -> vert ^ "==="
+    | NEGSTRUCTEQ-> vert ^ "=/="
     | NEQ -> vert^"!="
     | EXCLAMATION -> vert^"!"
     | MOD -> vert^"%"
@@ -141,6 +143,8 @@ rule token = parse
   | "/"  {  DIV }
   | "%"  {  MOD }
   | "==" {  EQ }
+  | "===" { STRUCTEQ }
+  | "=/=" { NEGSTRUCTEQ }
   | "=" {  AFFECT }
   | "!=" {  NEQ }
 

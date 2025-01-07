@@ -45,6 +45,8 @@ and binop =
   | Neq
   | And
   | Or
+  | StructEq
+  | NegStructEq
 
 (* Expressions *)
 and expr = {annot : typ ; expr : expr_; loc : Lexing.position * Lexing.position}
@@ -183,6 +185,8 @@ and string_of_biop (biop : binop) : string =
     | Neq -> "Neq"
     | And -> "And"
     | Or -> "Or"
+    | StructEq -> "StructEq"
+    | NegStructEq -> "NegStructEq"
   
 
 and string_of_mem = function

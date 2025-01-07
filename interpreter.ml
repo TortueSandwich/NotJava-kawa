@@ -1,7 +1,7 @@
 open Kawa
 open Typechecker (*Pour importer check_subtype*)
 
-type value = VInt of int | VBool of bool | VObj of obj | VArray of value array |Null 
+type value = Null | VInt of int | VBool of bool | VObj of obj | VArray of value array  
 and obj = { cls : string; fields : (string, value) Hashtbl.t }
 
 let rec typ_of_value = function
@@ -29,6 +29,8 @@ end
 
 module Env = Stack_env.MakeEnv (ValueType)
 
+let hashtable_values hashtable =
+  Hashtbl.fold (fun _ value acc -> value :: acc) hashtable []
 
 let rec init_value = function
   | TInt -> VInt 0
@@ -145,6 +147,15 @@ let exec_prog (p : program) : unit =
       let int_to_bool_op f =
         VBool (f (evali e1 env_stack) (evali e2 env_stack))
       in
+      let rec struct_eq v1 v2 = 
+        match v1, v2 with
+        VInt a , VInt b -> a = b
+        | VBool a , VBool b -> a = b
+        | Null , Null -> true
+        | VObj o1, VObj o2 -> assert (o1.cls = o2.cls); List.fold_left2 (fun acc a b -> acc && (struct_eq a b)) true (hashtable_values o1.fields) (hashtable_values o2.fields)
+        | VArray a1 , VArray a2 -> Array.fold_left (fun acc v -> acc && v) true (Array.map2 (fun a b -> struct_eq a b) a1 a2)
+        | _ , _ -> assert false (* should have been typechecked*)
+      in
       match binop with
       | Add -> int_op ( + )
       | Sub -> int_op ( - )
@@ -162,6 +173,8 @@ let exec_prog (p : program) : unit =
       | Neq -> int_to_bool_op ( <> )
       | And -> bool_op ( && )
       | Or -> bool_op ( || )
+      | StructEq -> VBool (struct_eq (eval e1 env_stack) (eval e2 env_stack))
+      | NegStructEq -> VBool (not (struct_eq (eval e1 env_stack) (eval e2 env_stack)))
     and eval (e : expr) env_stack : value =
       (* print_endline ("evaluation de " ^ string_of_expr e); *)
       match e.expr with
