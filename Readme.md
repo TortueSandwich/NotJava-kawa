@@ -99,8 +99,9 @@ Nous avons ajouté un test pour chaque fonctionnalité implémentée, y compris 
 
 ### Fonctionnalités supplémentaires<a name="fonctionnalités-supplémentaires"></a>
 
+- déclaration et initialisation de variable en tant qu'instruction
+- Portée & shadowing
 - Classes génériques
-- Portée & shadowing 
 - Interfaces (avec ou sans implémentation par défaut)
 
 ---
