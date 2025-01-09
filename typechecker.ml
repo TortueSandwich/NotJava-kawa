@@ -1,7 +1,16 @@
 open Kawa
 open Tools
-exception TypeError of string
 
+exception TypeError of string 
+exception IndexOutOfBounds 
+exception DimensionMismatch
+exception TypeCastError of string
+exception NotFound of string (*Class / var / method / interface*)
+exception CompileTimeError of string
+
+exception TypeCheckerError of exn * loc 
+
+let wrap_error exn loc = raise (TypeCheckerError (exn , loc))
 let error s = raise (TypeError s)
 
 let type_error ?(context = "") ty_actual ty_expected =
@@ -45,9 +54,6 @@ let rec get_array_core_type = function
   | TArray t -> get_array_core_type t
   | t -> t
 
-let rec reduce_dim t = function
-  | [] -> t
-  | _ :: tl ->match t with TArray t -> reduce_dim t tl | _ -> error "Dimension mismatch"
 
 let check_subtype objective curr (find_class_def: string -> class_def)=
   let rec aux objective curr (find_class_def : string -> class_def) =
@@ -59,7 +65,7 @@ let check_subtype objective curr (find_class_def: string -> class_def)=
       | Some parentname -> 
           let parentclsdef = find_class_def parentname in
           aux objective (TClass (parentclsdef.class_name, [])) find_class_def
-      | None -> error ("No parent class found for " ^ name)
+      | None -> raise(NotFound ("No parent class found for " ^ name))
       end
   | _ -> error ("Cannot check subtype for primitive type: " ^ (Kawa.string_of_typ curr))
   in
@@ -69,22 +75,22 @@ let check_subtype objective curr (find_class_def: string -> class_def)=
 let find_class_def class_name classes =
   try List.find (fun cls -> cls.class_name = class_name) classes
   with Not_found -> let classes_names = List.map (fun cls -> cls.class_name) classes in
-     error ("Class not found: " ^ class_name ^ (match closest_string class_name classes_names with
+     raise (NotFound ("Class not found: " ^ class_name ^ (match closest_string class_name classes_names with
      | Some closest -> ", did you mean " ^ closest ^ " ?\n"
-     | None -> ""))
+     | None -> "")))
 
 let find_interface_def interface_name interfaces =
   try List.find (fun i -> i.interface_name = interface_name) interfaces
-  with Not_found -> error ("Interface not found: " ^ interface_name ^ (match closest_string interface_name (List.map (fun i -> i.interface_name) interfaces) with
+  with Not_found -> raise (NotFound ("Interface not found: " ^ interface_name ^ (match closest_string interface_name (List.map (fun i -> i.interface_name) interfaces) with
      | Some closest -> ", did you mean " ^ closest ^ " ?\n"
-     | None -> ""))
+     | None -> "")))
 
 let find_method_def meth_name methods =
   match List.find_opt (fun m -> m.method_name = meth_name) methods with
   | Some m -> m
-  | None -> error ("Method not found: " ^ meth_name ^ (match closest_string meth_name (List.map (fun m -> m.method_name) methods) with
+  | None -> raise (NotFound ("Method not found: " ^ meth_name ^ (match closest_string meth_name (List.map (fun m -> m.method_name) methods) with
      | Some closest -> ", did you mean " ^ closest ^ " ?\n"
-     | None -> ""))
+     | None -> "")))
 
 let objname_of_typ = function TClass (clsname, gener) -> clsname | _ -> assert false
 
@@ -147,7 +153,7 @@ let typecheck_prog (p : program) : program =
               check_subtype newType typed_e.annot ; {annot = newType ; expr = typed_e.expr; loc = e.loc}
             with
             | _ ->  (try check_subtype typed_e.annot newType ;{annot = newType ; expr = Unop(u, typed_e); loc = e.loc} (*typecast vers le bas, à vérifier à l'exec*)
-                    with TypeError s -> error ("Impossible to typecast, "^s)
+                    with TypeError s -> wrap_error (TypeCastError ("Impossible to typecast, "^s)) e.loc
                       )
             )
         | InstanceOf (t) -> if t = typed_e.annot then {annot = TBool ; expr = Bool(true); loc = e.loc}
@@ -173,13 +179,13 @@ let typecheck_prog (p : program) : program =
             check_eq_type TBool typed_e2.annot;
             {annot = TBool ; expr =  Binop(u , typed_e1, typed_e2); loc = e.loc}
       | StructEq | NegStructEq -> try check_eq_type typed_e1.annot typed_e2.annot;  { annot = TBool; expr = Binop (u, typed_e1, typed_e2) ; loc = e.loc}
-                          with TypeError s ->  error ("Impossible to compare the two objects.\n" ^ s ^ report_bug e.loc (fst(e.loc)).pos_fname))
+                          with TypeError s -> wrap_error (error ("Impossible to compare the two objects.\n" ^ s)) e.loc )
     | Get m -> {annot = type_mem_access m env_stack ; expr = e.expr; loc = e.loc} 
     | This -> begin 
         try
           let c = Env.find env_stack "this" in
           {annot = c ; expr = e.expr ; loc = e.loc}
-        with Not_found -> error ("Class not found: " ^ "this")
+        with Not_found -> raise (NotFound ("Class not found: " ^ "this"))
     end
 
     | New (class_name, generics) -> 
@@ -231,7 +237,7 @@ let typecheck_prog (p : program) : program =
         let defclass = find_class_def (objname_of_typ c) in
         let parentdef = find_class_def (match defclass.parent with
         | Some parentname -> parentname
-        | None -> error ("No parent class found for " ^ defclass.class_name ^ " cannot call super"))
+        | None -> raise (NotFound ("No parent class found for " ^ defclass.class_name ^ " cannot call super")))
         in
         let method_def = find_method_def meth_name parentdef.methods in
         let param_types = List.map snd method_def.params in
@@ -243,14 +249,19 @@ let typecheck_prog (p : program) : program =
           expr = SuperCall(meth_name, typed_args); loc = e.loc;
         }
  
-        with Not_found -> error ("Super cannot be called in main")
-        |     TypeError s -> error ("Super cannot be called, " ^ s )
+        with Stack_env.EnvError _ -> wrap_error (CompileTimeError ("Super cannot be called in main")) e.loc
+        |    err -> wrap_error err e.loc  
       )
       | NewArray (t, n) ->
           let typed_n = List.map (fun x -> check_expr x env_stack) n in
           List.iter (fun x -> check_eq_type TInt x.annot) typed_n;
           {annot = e.annot; expr = NewArray (t, typed_n); loc = e.loc}
   and type_mem_access m stack_env : typ =
+    let rec reduce_dim t = function
+  | [] -> t
+  | hd :: tl ->check_eq_type TInt (check_expr hd stack_env).annot; 
+              (match t with TArray t -> reduce_dim t tl | _ -> raise DimensionMismatch )
+  in
     match m with
     | Var name -> begin
       try 
@@ -258,9 +269,9 @@ let typecheck_prog (p : program) : program =
       with
         | _ -> (
           let closest = closest_string name (Env.get_all_names stack_env) in 
-          error ("Undeclared variable: " ^ name ^ (if closest <> (Some("")) then
+          raise (NotFound ("Undeclared variable: " ^ name ^ (if closest <> (Some("")) then
             ", did you mean " ^ (Option.get closest) ^ " ?\n" else ""
-            )
+            ))
         ))
         end
     | Field (obj, field_name) ->
@@ -284,21 +295,22 @@ let typecheck_prog (p : program) : program =
                 let parentclsdef = find_class_def parentname in
                 find_familly parentclsdef
             | None ->
-                error
-                  ("Field " ^ field_name ^ " not declared for class " ^ cls_name))
+                raise(NotFound
+                  ("Field " ^ field_name ^ " not declared for class " ^ cls_name)))
         in
         find_familly class_def
-    | Array_var (name, l) -> try 
+    | Array_var (name, l) -> 
+    (try 
         let t = Env.find stack_env name in 
-        reduce_dim t l
-    with
-    | _ -> (
-      let closest = closest_string name (Env.get_all_names stack_env) in 
-      error ("Undeclared variable: " ^ name ^ (if closest <> (Some("")) then
-        ", did you mean " ^ (Option.get closest) ^ " ?\n" else ""
+        reduce_dim t l 
+      with
+      | Stack_env.EnvError _ -> (
+        let closest = closest_string name (Env.get_all_names stack_env) in 
+        raise (NotFound("Undeclared variable: " ^ name ^ (if closest <> (Some("")) then
+          ", did you mean " ^ (Option.get closest) ^ " ?\n" else "")))
         )
-    ))
-
+      | err -> raise err
+    )
   and check_instr i ret stack_env : instr =
     try
       (* print_endline ("typechheck : " ^ string_of_instr i.instr); *)
@@ -351,7 +363,8 @@ let typecheck_prog (p : program) : program =
         check_subtype t typedval.annot;
         {instr = Declare (varnames, t, Some typedval); loc=i.loc}
 
-      with TypeError s -> error (s)
+      with TypeCheckerError (s,loc) -> raise (TypeCheckerError(s,loc))
+      | err -> wrap_error err i.loc
 
       
   and check_seq s ret tenv : seq =
@@ -367,8 +380,10 @@ let typecheck_prog (p : program) : program =
                "Method %s has different signature than method %s"
                method1.method_name  method2.method_name) 
       in
-      List.iter (fun meth -> try  check_eq_signatures (List.find (fun x -> meth.method_name = x.method_name) class_def.methods)  meth with Not_found  -> error (Printf.sprintf "Method %s must be implemented in class %s" meth.method_name class_def.class_name))
-                 (List.filter (fun met -> met.default = false) interface_def.methods) (*checks implementation for methods without default*)
+      List.iter (fun meth -> try  
+            check_eq_signatures (List.find (fun x -> meth.method_name = x.method_name) class_def.methods)  meth 
+          with Not_found  -> raise (CompileTimeError (Printf.sprintf "Method %s must be implemented in class %s" meth.method_name class_def.class_name)))
+            (List.filter (fun met -> met.default = false) interface_def.methods) (*checks implementation for methods without default*)
     in
 
     let typed_one_class c =
