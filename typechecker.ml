@@ -79,14 +79,43 @@ let find_interface_def interface_name interfaces =
      | Some closest -> ", did you mean " ^ closest ^ " ?\n"
      | None -> ""))
 
-let find_method_def meth_name methods =
-  match List.find_opt (fun m -> m.method_name = meth_name) methods with
+let get_all_method class_def interfaces =
+  let definterfaces = List.fold_left (fun acc name -> (find_interface_def name interfaces)::acc) [] class_def.implemented_interfaces in
+  let machin = (List.flatten (List.map (fun inter-> inter.methods) definterfaces)) in
+  let other = (List.filter (fun x -> x.default = true) machin) in
+  let what = (class_def.methods@other) in
+  what
+
+let rec find_method_def meth_name defclass p =
+  let allmeth = (get_all_method defclass p.interfaces) in
+  match List.find_opt (fun m -> m.method_name = meth_name) allmeth with
   | Some m -> m
-  | None -> 
-    (* TODO !! *)
-    error ("Method not found: " ^ meth_name ^ (match closest_string meth_name (List.map (fun m -> m.method_name) methods) with
+  | None ->     
+    (match defclass.parent with
+    | Some parent -> 
+      let parentdefclass = List.find (fun cls -> cls.class_name = parent) p.classes in
+      find_method_def meth_name parentdefclass p 
+    | None ->
+      error ("Method not found: " ^ meth_name ^ (match closest_string meth_name (List.map (fun m -> m.method_name) allmeth) with
      | Some closest -> ", did you mean " ^ closest ^ " ?\n"
      | None -> ""))
+  )
+    (* TODO !! *)
+
+let find_method_def_locally meth_name methods =
+  match List.find_opt (fun m -> m.method_name = meth_name) methods with
+  | Some m -> m
+  | None ->     
+    (* (match defclass.parent with
+    | Some parent -> List.find (fun cls -> cls.class_name = parent) p.classes
+      |> findmethod
+    | None -> *)
+      error ("Method not found: " ^ meth_name ^ (match closest_string meth_name (List.map (fun m -> m.method_name) methods) with
+     | Some closest -> ", did you mean " ^ closest ^ " ?\n"
+     | None -> ""))
+  (* ) *)
+    (* TODO !! *)
+    
 
 let objname_of_typ = function TClass (clsname, gener) -> clsname | _ -> assert false
 
@@ -125,7 +154,7 @@ let typecheck_prog (p : program) : program =
 
   let find_class_def class_name = find_class_def class_name p.classes in
   let find_interface_def interface_name = find_interface_def interface_name p.interfaces in
-  let get_interfaces_from_class class_name = let c = find_class_def class_name in List.fold_left (fun acc name -> (find_interface_def name)::acc) [] c.implemented_interfaces in
+  
   let check_subtype objective curr =
     check_subtype objective curr find_class_def
   in
@@ -189,7 +218,7 @@ let typecheck_prog (p : program) : program =
       {annot = TClass (class_name, generics) ; expr = e.expr; loc = e.loc}
     | NewCstr (class_name, genrics ,args) ->
         let defclass = find_class_def class_name in
-        let constructor = find_method_def "constructor" defclass.methods in
+        let constructor = find_method_def_locally "constructor" defclass.methods in
         let param_types = List.map snd constructor.params in
         let arg_types =
           List.map (fun arg -> (check_expr arg env_stack).annot) args
@@ -204,10 +233,12 @@ let typecheck_prog (p : program) : program =
         let typed_obj = check_expr obj env_stack in
         let typcls = objname_of_typ typed_obj.annot in
         let defclass = find_class_def typcls in
-        let definterfaces = get_interfaces_from_class typcls in 
+
         (* FAIRE fonction getallmethod classdef -> method list *)
-        let what = (defclass.methods@(List.filter (fun x -> x.default = true) (List.flatten (List.map (fun inter-> inter.methods) definterfaces)))) in
-        let methodeu = find_method_def meth_name what in
+      
+        (* let allclassmeths = get_all_method defclass p.interfaces in *)
+        let methodeu = find_method_def meth_name defclass p in
+
         let param_types = List.map snd methodeu.params in
         let typed_args = List.map (fun arg -> check_expr arg env_stack) args in
         
@@ -237,7 +268,7 @@ let typecheck_prog (p : program) : program =
         | Some parentname -> parentname
         | None -> error ("No parent class found for " ^ defclass.class_name ^ " cannot call super"))
         in
-        let method_def = find_method_def meth_name parentdef.methods in
+        let method_def = find_method_def meth_name parentdef p in
         let param_types = List.map snd method_def.params in
         let typed_args = List.map (fun arg -> check_expr arg env_stack) args in
         List.iter2 check_subtype param_types

@@ -39,7 +39,7 @@ let rec expr_to_dot with_id (e : expr) =
       let c = create_connection with_id m_id in
       (currnode :: m_nodes, c :: m_connections)
   | This -> ([ create_node with_id "this" ], [])
-  (* | SuperCall -> ([ create_node with_id "super" ], []) *)
+  | SuperCall (s, el) -> ([ create_node with_id "super" ], [])
   | New (s, g) ->
       let currnode = create_node with_id "new" in
       let c_id = fresh_id () in
@@ -84,9 +84,9 @@ let rec expr_to_dot with_id (e : expr) =
       | _ -> (currnode :: argnodes, argcon))
   
 
-| _ ->
+(* | _ ->
       let node = create_node with_id "Non traité (expr)" in
-      ([ node ], [])
+      ([ node ], []) *)
 
 and typed_expr_to_dot with_id expr = expr_to_dot with_id expr
 
