@@ -24,6 +24,7 @@
 %token INSTANCEOF, AS
 
 %token GENERIC
+%token PUBLIC PRIVATE PROTECTED
 
 %left OR
 %left AND
@@ -163,9 +164,10 @@ interface_def:
 
 
 attr_decl:
-| ATTRIBUTE t=kawatype s=IDENT semi_handled {
-  (s,t)
-  }
+| ATTRIBUTE t=kawatype s=IDENT semi_handled {(s,t)}
+| PUBLIC ATTRIBUTE t=kawatype s=IDENT semi_handled {(s,t)}
+| PRIVATE ATTRIBUTE t=kawatype s=IDENT semi_handled {(s,t)}
+| PROTECTED ATTRIBUTE t=kawatype s=IDENT semi_handled {(s,t)}
 ;
 
 

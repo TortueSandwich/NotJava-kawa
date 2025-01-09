@@ -39,6 +39,7 @@ let rec expr_to_dot with_id (e : expr) =
       let c = create_connection with_id m_id in
       (currnode :: m_nodes, c :: m_connections)
   | This -> ([ create_node with_id "this" ], [])
+  (* | SuperCall -> ([ create_node with_id "super" ], []) *)
   | New (s, g) ->
       let currnode = create_node with_id "new" in
       let c_id = fresh_id () in
@@ -80,11 +81,23 @@ let rec expr_to_dot with_id (e : expr) =
           let t_node = create_node t_id (string_of_typ t) in
           let t_con = create_connection with_id t_id in
           (currnode :: t_node :: argnodes, t_con :: argcon)
+      | AccessArray idx -> 
+        let currnode = create_node with_id "AccessArray" in
+        let idx_id = fresh_id () in
+        let idx_node, idx_con = typed_expr_to_dot idx_id e in
+        let arr_id = fresh_id () in
+        let arr_node, arr_con = typed_expr_to_dot idx_id e in
+        let con = idx_con @ arr_con @ [
+            create_connection with_id idx_id ~label:"index";
+            create_connection with_id arr_id ~label:"access";
+          ] in
+        (currnode :: (idx_node @ arr_node), con)
       | _ -> (currnode :: argnodes, argcon))
+  
 
-(* | _ ->
+| _ ->
       let node = create_node with_id "Non traité (expr)" in
-      ([ node ], []) *)
+      ([ node ], [])
 
 and typed_expr_to_dot with_id expr = expr_to_dot with_id expr
 
@@ -117,6 +130,16 @@ and mem_to_dot withid (m : Kawa.mem_access) =
         [ create_connection withid e_id; create_connection withid f_id ]
       in
       (nodes @ n, connections @ c)
+  | Array_var (s, el) -> 
+    let currnode = create_node withid "Array_var" "" in
+    let argnodes, argcon =
+        create_node_and_connections withid el ~ordered:true
+    in
+    let id_var = fresh_id () in
+    let varnode = create_node id_var s "" in
+    let cons = create_connection withid id_var ~label:"array" in
+    (currnode ::varnode :: argnodes, cons :: argcon)
+  (* | _ -> let node = create_node withid "Non traité (memory)" "" in ([ node ], []) *)
 
 and inst_to_dot with_id instr =
   let create_node with_id lab = create_node with_id lab "" in

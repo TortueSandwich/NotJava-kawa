@@ -83,7 +83,8 @@ let find_interface_def interface_name interfaces =
 let find_method_def meth_name methods =
   match List.find_opt (fun m -> m.method_name = meth_name) methods with
   | Some m -> m
-  | None -> error ("Method not found: " ^ meth_name ^ (match closest_string meth_name (List.map (fun m -> m.method_name) methods) with
+  | None -> 
+    error ("Method not found: " ^ meth_name ^ (match closest_string meth_name (List.map (fun m -> m.method_name) methods) with
      | Some closest -> ", did you mean " ^ closest ^ " ?\n"
      | None -> ""))
 
@@ -207,7 +208,9 @@ let typecheck_prog (p : program) : program =
         let typcls = objname_of_typ typed_obj.annot in
         let defclass = find_class_def typcls in
         let definterfaces = get_interfaces_from_class typcls in 
-        let methodeu = find_method_def meth_name (defclass.methods@(List.filter (fun x -> x.default = true) (List.flatten (List.map (fun inter-> inter.methods) definterfaces)))) in
+
+        let what = (defclass.methods@(List.filter (fun x -> x.default = true) (List.flatten (List.map (fun inter-> inter.methods) definterfaces)))) in
+        let methodeu = find_method_def meth_name what in
         let param_types = List.map snd methodeu.params in
         let typed_args = List.map (fun arg -> check_expr arg env_stack) args in
         

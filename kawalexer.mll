@@ -35,6 +35,9 @@
         "super" ,   SUPER;
         (* "impl",     IMPL; *)
         "generic",   GENERIC;
+        "public",    PUBLIC;
+        "protected", PROTECTED;
+        "private",   PRIVATE;
       ] ;
     fun s ->
       try  Hashtbl.find h s
@@ -106,6 +109,10 @@
     | RBR -> jaune^"]"
     | LBR -> jaune^"["
     | SUPER -> orange^"super"
+
+    | PUBLIC -> bleu^"public"
+    | PRIVATE -> bleu^"private"
+    | PROTECTED -> bleu^"protected"
 
     (* | _ -> "UNKNOWN"  *)
     in t ^"\027[0m"    
