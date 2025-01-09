@@ -308,7 +308,10 @@ let typecheck_prog (p : program) : program =
         in
         let rec find_familly c =
           try 
-            let (_,res) = List.find (fun (k, _) -> k = field_name) c.attributes in
+            let (_,res, visible) = List.find (fun (k, _, _) -> k = field_name) c.attributes in
+            (* (match visible with 
+            | Private -> 
+            ); *)
             let res = realtypeofgeneric class_def genericsapplication res in (
               res
             )
@@ -326,11 +329,11 @@ let typecheck_prog (p : program) : program =
     | Array_var (name, l) -> try 
         let t = Env.find stack_env name in 
         reduce_dim t l
-    with
-    | _ -> (
-      let closest = closest_string name (Env.get_all_names stack_env) in 
-      error ("Undeclared variable: " ^ name ^ (if closest <> (Some("")) then
-        ", did you mean " ^ (Option.get closest) ^ " ?\n" else ""
+      with
+      | _ -> (
+        let closest = closest_string name (Env.get_all_names stack_env) in 
+        error ("Undeclared variable: " ^ name ^ (if closest <> (Some("")) then
+          ", did you mean " ^ (Option.get closest) ^ " ?\n" else ""
         )
     ))
 
@@ -410,7 +413,7 @@ let typecheck_prog (p : program) : program =
       let global_env = Env.new_env_stack () in
       let class_stack_env = Env.new_env global_env  in
       List.iter
-        (fun (x, t) -> Env.define_locally class_stack_env x t)
+        (fun (x, t, _) -> Env.define_locally class_stack_env x t)
         c.attributes;
       Env.define_locally class_stack_env "this" (TClass (c.class_name, List.map (fun x -> TClass(x, [])) c.generics));
       let typed_method m =

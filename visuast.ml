@@ -82,7 +82,7 @@ let rec expr_to_dot with_id (e : expr) =
           let t_con = create_connection with_id t_id in
           (currnode :: t_node :: argnodes, t_con :: argcon)
       | _ -> (currnode :: argnodes, argcon))
-  
+  | NewArray(t, args) -> ([],[])
 
 (* | _ ->
       let node = create_node with_id "Non traité (expr)" in

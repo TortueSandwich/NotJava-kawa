@@ -96,6 +96,8 @@ and instr_ =
 
 and seq = instr list
 
+type visibility = Public (*default*) | Private | Protected
+
 (* Définition de méthode
 
    Syntaxe : method <type de retour> <nom> (<params>) { ... }
@@ -121,7 +123,7 @@ type method_def = {
 type class_def = {
   class_name : string;
   generics : string list;
-  attributes : (string * typ) list;
+  attributes : (string * typ * visibility) list;
   methods : method_def list;
   parent : string option;
   implemented_interfaces : string list;

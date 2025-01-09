@@ -77,7 +77,7 @@ let exec_prog (p : program) : unit =
   let alloc class_name =
     let c = findclass class_name in
     let vartable =
-      List.map (fun (name,_) -> (name, Null)) c.attributes
+      List.map (fun (name,_, _) -> (name, Null)) c.attributes
       |> List.to_seq |> Hashtbl.of_seq
     in
     { cls = class_name; fields = vartable }
