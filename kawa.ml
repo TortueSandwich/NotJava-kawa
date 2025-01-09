@@ -28,7 +28,7 @@ let rec string_of_typ = function
                       in aux t "[]" 
 
 
-type unop = Opp | Not | TypeCast of typ | InstanceOf of typ | AccessArray of expr
+type unop = Opp | Not | TypeCast of typ | InstanceOf of typ 
 (* Opérations binaires *)
 
 and binop =
@@ -168,7 +168,6 @@ and string_of_unop unop = match unop with
   Opp -> "Opp" | Not -> "Not" 
   | TypeCast (newType) -> "TypeCast("^( string_of_typ newType) ^ ")"
   | InstanceOf (t) -> "InstanceOf ("^( string_of_typ t) ^ ")"
-  | AccessArray (i) -> "["^(string_of_expr i)^"]"
 
 and string_of_biop (biop : binop) : string =
     match biop with

@@ -28,7 +28,6 @@ let type_of_unop = function
   | Not -> TBool
   | TypeCast newType -> newType
   | InstanceOf _ -> TBool
-  | AccessArray _ -> TInt  
 
 let type_of_binop = function
   | Add | Sub | Mul | Div | Rem -> TInt
@@ -153,9 +152,6 @@ let typecheck_prog (p : program) : program =
             )
         | InstanceOf (t) -> if t = typed_e.annot then {annot = TBool ; expr = Bool(true); loc = e.loc}
                             else {annot = TBool ; expr = Unop(u, typed_e); loc = e.loc}
-        | AccessArray (index) -> let typed_index = check_expr index env_stack in 
-                                 check_eq_type TInt typed_index.annot;
-                                {annot = get_array_elem_type typed_e.annot; expr = Unop(u, typed_e); loc = e.loc} 
     )
     | Binop (u, e1, e2) -> (
         let typed_e1 = check_expr e1 env_stack in

@@ -134,13 +134,7 @@ let exec_prog (p : program) : unit =
             check_subtype t (typ_of_value v_e);
             VBool true
           with _ -> VBool false)
-      | AccessArray i -> 
-          let v_e = eval e env_stack in
-          let i = evali i env_stack in
-          (match v_e with
-          | VArray a -> (try a.(i) with Invalid_argument s -> raise (Error (s^ report_bug e)))
-          | _ -> Typechecker.error ((string_of_expr e) ^ " is not an array")) 
-
+        
     and evalbinop binop (e1 : expr) (e2 : expr) env_stack =
       let int_op f = VInt (f (evali e1 env_stack) (evali e2 env_stack)) in
       let bool_op f = VBool (f (evalb e1 env_stack) (evalb e2 env_stack)) in
