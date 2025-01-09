@@ -81,17 +81,6 @@ let rec expr_to_dot with_id (e : expr) =
           let t_node = create_node t_id (string_of_typ t) in
           let t_con = create_connection with_id t_id in
           (currnode :: t_node :: argnodes, t_con :: argcon)
-      | AccessArray idx -> 
-        let currnode = create_node with_id "AccessArray" in
-        let idx_id = fresh_id () in
-        let idx_node, idx_con = typed_expr_to_dot idx_id e in
-        let arr_id = fresh_id () in
-        let arr_node, arr_con = typed_expr_to_dot idx_id e in
-        let con = idx_con @ arr_con @ [
-            create_connection with_id idx_id ~label:"index";
-            create_connection with_id arr_id ~label:"access";
-          ] in
-        (currnode :: (idx_node @ arr_node), con)
       | _ -> (currnode :: argnodes, argcon))
   
 
