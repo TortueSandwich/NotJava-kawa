@@ -150,15 +150,7 @@ let () =
     exit code
   in
   let compile f =
-    let report (b, e) =
-      let l = b.pos_lnum in
-      let fc = b.pos_cnum - b.pos_bol + 1 in
-      let lc = e.pos_cnum - b.pos_bol + 1 in
-      eprintf "File \"%s\", line %d, characters %d-%d:\n" f l fc lc;
-      let line_content = get_line f l in
-      eprintf "%s\n" line_content;
-      eprintf "%s\n" (String.make (fc - 1) ' ' ^ String.make (lc - fc + 1) '^')
-    in
+    let report loc = print_string (Tools.report_bug loc f)  in
     let c = open_in f in
     let lb = Lexing.from_channel c in
     Lexing.set_filename lb f;
@@ -190,8 +182,15 @@ let () =
     | Interpreter.Error s ->
         eprintf "\027[91minterpreter error: \027[0m%s@." s;
         exit 1
-    | Typechecker.TypeError s -> 
-        eprintf "\027[91mType error: \027[0m%s@." s;
+    | Typechecker.TypeCheckerError (err,loc) -> 
+        match err with 
+        | Typechecker.TypeError s -> eprintf "\027[91mType error: \027[0m%s@.\n" s; report loc ;
+        | Typechecker.IndexOutOfBounds -> eprintf "\027[91mCompile Time error: \027[0m Index out of bounds@.\n" ; report loc ;
+        | Typechecker.DimensionMismatch -> eprintf "\027[91mType error: \027[0m Dimension Mismatch@.\n" ; report loc ;
+        | Typechecker.TypeCastError s -> eprintf"\027[91mTypeCast error: \027[0m%s@.\n" s; report loc ;
+        | Typechecker.NotFound s -> eprintf "\027[91mUnknown Reference: \027[0m%s@.\n" s; report loc ;
+        | Typechecker.CompileTimeError s -> eprintf "\027[91mCompileTimeError: \027[0m%s@.\n" s; report loc ;
+
         exit 1
     | Stack_env.EnvError e ->
       eprintf "\027[91mEnvironment error:\027[0m %s@." (Stack_env.string_of_env_error e);

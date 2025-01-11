@@ -28,5 +28,5 @@ class triple extends paire {
 }
 
 main {
-  t = new paire(3, 4);
+  t = new paire(3, 4); // bug
 }

@@ -48,8 +48,12 @@ and binop =
   | StructEq
   | NegStructEq
 
+
+
+type loc = Lexing.position * Lexing.position
+
 (* Expressions *)
-and expr = {annot : typ ; expr : expr_; loc : Lexing.position * Lexing.position}
+and expr = {annot : typ ; expr : expr_; loc : loc}
 and expr_ = 
   (* Base arithmétique *)
   | Int of int
