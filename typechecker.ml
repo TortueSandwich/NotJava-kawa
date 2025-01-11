@@ -299,19 +299,27 @@ let typecheck_prog (p : program) : program =
         ))
         end
     | Field (obj, field_name) ->
-        let objtpye = (check_expr obj stack_env).annot in
+        let obj = check_expr obj stack_env in
+        let {annot=objtpye; expr=eou} = obj in
+        print_endline (match eou with 
+        | This -> "oue oklm"
+        | _ -> "c'est chaud");
+
         let cls_name = objname_of_typ objtpye in
         let class_def = find_class_def cls_name in
         let genericsapplication = match objtpye with 
         | TClass(_, g) -> g
         | _ -> assert false
         in
-        let rec find_familly c =
+        let rec find_familly c courrant =
           try 
             let (_,res, visible) = List.find (fun (k, _, _) -> k = field_name) c.attributes in
-            (* (match visible with 
-            | Private -> 
-            ); *)
+            if eou <> This then 
+            (match visible with 
+            | Private -> failwith "nan c'est privé";
+            | Public -> ()
+            | Protected -> if courrant then () else failwith "nan c'est protected (mais bien definie tho)";
+            ); 
             let res = realtypeofgeneric class_def genericsapplication res in (
               res
             )
@@ -320,12 +328,12 @@ let typecheck_prog (p : program) : program =
             match c.parent with
             | Some parentname ->
                 let parentclsdef = find_class_def parentname in
-                find_familly parentclsdef
+                find_familly parentclsdef false
             | None ->
                 error
                   ("Field " ^ field_name ^ " not declared for class " ^ cls_name))
         in
-        find_familly class_def
+        find_familly class_def true
     | Array_var (name, l) -> try 
         let t = Env.find stack_env name in 
         reduce_dim t l
