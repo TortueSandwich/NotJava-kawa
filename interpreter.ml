@@ -109,9 +109,6 @@ let exec_prog (p : program) : unit =
       (fun acc name -> find_interface_def name :: acc)
       [] c.implemented_interfaces
   in
-  let (<:) a b = check_subtype p b a in
-  let (<:?) a b = if not (a <: b) then SubTypeError(a, b) |> tpraise in
-  
   let findclass class_name =
     List.find (fun x -> x.class_name = class_name) p.classes
   in
@@ -168,6 +165,8 @@ let exec_prog (p : program) : unit =
     and evalo (e : expr) env_stack =
       match eval e env_stack with VObj o -> o | _ -> assert false
     and evalunop unop (e : expr) env_stack =
+      let (<:) a b = check_subtype e.loc p b a in
+      let (<:?) a b = if not (a <: b) then SubTypeError(a, b) |> tpraise in
       match unop with
       | Opp -> VInt (-evali e env_stack)
       | Not -> VBool (not (evalb e env_stack))

@@ -184,8 +184,32 @@ let () =
         eprintf "\027[91minterpreter error: \027[0m%s@." "oueetqt";
         (* s; *)
         exit 1
-      | Typechecker.TpError (e) -> 
-        eprintf "\027[91mTypechecker error: \027[0m%s@." "oueetqt";
+      | Typechecker.TpError (e, loc) -> 
+        eprintf "\027[91mTypechecker error: \027[0m@.";
+        if Option.is_some loc then begin
+          print_string "got some localisation :)\n";
+          let loc = Option.get loc in report loc
+        end else print_string "No localisation :(\n";
+        begin
+        match e with
+        | VariableNotFound varname -> eprintf "Variable not found : %s" varname;
+        | DimensionMismatch -> eprintf "Missmatched dimension";
+        | ClassNotFound classname -> eprintf "Class not found : %s" classname;
+        | InterfaceNotFound inter_name -> eprintf "Interface not found : %s" inter_name;
+        | MethodNotFound math_name -> eprintf "Method not found : %s" math_name;
+        | FieldNotFound (field_name,classname) -> eprintf "Field %s not found in%s" field_name classname;
+        | NoParent classname -> eprintf "%s doesnt have any parent" classname;
+        | SuperMain -> eprintf "Why would you call superin main ? Do you know what you are doing ?";
+        | UnAutorizeAccess (var, prio) -> eprintf "%s cant be accessed here because it is defined as %s" var (Kawa.string_of_visibility prio);
+        | NotImplemented (classdef, methdef) -> eprintf "You have to implement %s in the class %s" classdef.class_name methdef.method_name;
+        | NotIndexable t -> eprintf "cannot index type %s" (Kawa.string_of_typ t);
+        | UnexpectedType (exp, got) -> eprintf "expected %s but got %s" (Kawa.string_of_typ exp) (Kawa.string_of_typ got);
+        | SubTypeError (a, b) -> eprintf "%s is not a subtype of %s" (Kawa.string_of_typ a) (Kawa.string_of_typ b);
+        | PrimitiveSubtype -> eprintf "a primitive typecannot be subtype"
+        | DifferentSignature(a,b) -> eprintf "%s has different signatures" a.method_name;
+
+        end;
+        eprintf "\n";
         (* exit 1 *)
     (* | Typechecker.TypeCheckerError (err,loc) -> 
         match err with 

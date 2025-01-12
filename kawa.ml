@@ -246,6 +246,11 @@ let string_of_instr = function
       ^ List.fold_left (fun acc x -> acc ^ " " ^ x) "" v
       ^ ", " ^ string_of_typ t ^ valstring
 
+let string_of_visibility = function
+| Public -> "public"
+| Private -> "private"
+| Protected -> "protected"
+
 (* pas fou *)
 let expr_from a expr = { annot = expr.annot; expr = a; loc = expr.loc }
 
@@ -275,4 +280,4 @@ let find_interface_def p interface_name =
 
 let is_primitive = function
 | TClass _ -> false
-| _ -> false
+| _ -> true
