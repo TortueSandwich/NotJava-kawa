@@ -8,7 +8,7 @@
 
 (executable
  (name kawai)
- (modules tools kawa kawalexer kawaparser kawai interpreter typechecker visuast stack_env)
+ (modules tools kawa kawalexer kawaparser kawai interpreter typechecker visuast stack_env convrsion usefull)
  (promote (until-clean))
  (flags ()))
 

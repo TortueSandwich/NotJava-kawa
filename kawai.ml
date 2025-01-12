@@ -55,7 +55,7 @@ let print_source file =
     done
   with End_of_file -> close_in in_channel
 
-(* recuperer fichiers si non-précisé *)
+(* recuperer fichiers via le menu si non-précisé en ligne de commande*)
 let files =
   match !input_files with
   | [] ->
@@ -141,6 +141,7 @@ let custom_printexc_to_string exn =
     in
     "\027[91m SyntaxError:\027[0m " ^ extracted_content
 
+(* Main attraction *)
 let () =
   let exit code =
     if !input_files = [] then
@@ -179,8 +180,9 @@ let () =
         eprintf "\027[91msyntax error:\027[0m Unexpected token: %s\n"
           (Kawalexer.token_to_string (Kawalexer.token lb));
         exit 1
-    | Interpreter.Error s ->
-        eprintf "\027[91minterpreter error: \027[0m%s@." s;
+    | Interpreter.IError s ->
+        eprintf "\027[91minterpreter error: \027[0m%s@." "oueetqt";
+        (* s; *)
         exit 1
     | Typechecker.TypeCheckerError (err,loc) -> 
         match err with 

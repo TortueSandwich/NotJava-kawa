@@ -205,10 +205,10 @@ def_sans_default:
 
 
 
-%inline mem:
+mem:
 | s=IDENT {Var(s) }
 | e=expression POINT s=IDENT {Field(e,s)}
-| s=IDENT e=nonempty_list(dimension) {Array_var(s,e)}
+| s=mem e=nonempty_list(dimension) {Array_var(s,e)} // todo expression
 ;
 
 %inline base_types:

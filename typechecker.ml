@@ -334,14 +334,16 @@ let typecheck_prog (p : program) : program =
         in
         find_familly class_def true
     | Array_var (name, l) -> (try 
-    let t = Env.find stack_env name in 
-    reduce_dim t l 
+      let t = type_mem_access name stack_env in 
+      reduce_dim t l 
   with
   | Stack_env.EnvError _ -> (
-    let closest = closest_string name (Env.get_all_names stack_env) in 
-    raise (NotFound("Undeclared variable: " ^ name ^ (if closest <> (Some("")) then
-      ", did you mean " ^ (Option.get closest) ^ " ?\n" else "")))
-    )
+    (* let closest = closest_string name (Env.get_all_names stack_env) in  *)
+    (* raise (NotFound("Undeclared variable: " ^ name ^ (if closest <> (Some("")) then *)
+      (* ", did you mean " ^ (Option.get closest) ^ " ?\n" else ""))) *)
+    (* ) *)
+    failwith "todo"
+  )
   | err -> raise err
 
     )

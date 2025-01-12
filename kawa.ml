@@ -1,34 +1,11 @@
-(**
-   Kawa : un petit langage à objets inspiré de Java
- *)
+(** Kawa : un petit langage à objets inspiré de Java *)
 
 (* Types déclarés pour les attributs, pour les variables, et pour les
    paramètres et résultats des méthodes. *)
 
 type typ = TVoid | TInt | TBool | TClass of string * typ list | TArray of typ
 
-let rec typ_of_string = function
-  | "int" -> TInt
-  | "bool" -> TBool
-  | "void" -> TVoid
-  | s->if Tools.is_valid_array_string s then TArray (typ_of_string (String.sub s 0 ((String.length s) - 2))) else TClass (s,[])
-
-let rec string_of_typ = function
-  | TVoid -> "void"
-  | TInt -> "int"
-  | TBool -> "bool"
-  | TClass(c,l) -> c ^ "{" ^ 
-  (* :if Option.is_some l then string_of_typ (Option.get l) else "" *)
-  List.fold_left (fun acc x -> acc  ^ (string_of_typ x) ^ ", ") "" l 
-  ^ "}"
-  | TArray t -> let rec aux t acc= 
-                      match t with 
-                      TArray t -> aux t ("[]"^acc) 
-                      | base_type -> (string_of_typ base_type) ^ acc 
-                      in aux t "[]" 
-
-
-type unop = Opp | Not | TypeCast of typ | InstanceOf of typ 
+type unop = Opp | Not | TypeCast of typ | InstanceOf of typ
 (* Opérations binaires *)
 
 and binop =
@@ -48,13 +25,13 @@ and binop =
   | StructEq
   | NegStructEq
 
-
-
+(* todo explications *)
 type loc = Lexing.position * Lexing.position
 
 (* Expressions *)
-and expr = {annot : typ ; expr : expr_; loc : loc}
-and expr_ = 
+and expr = { annot : typ; expr : expr_; loc : loc }
+
+and expr_ =
   (* Base arithmétique *)
   | Int of int
   | Bool of bool
@@ -70,19 +47,21 @@ and expr_ =
   (* Appel de méthode *)
   | MethCall of expr * string * expr list
   (* Appel à super*)
-  |SuperCall of string * expr list
-  (* Création d'un tableau *)
+  | SuperCall of string * expr list
   (*Création d'un tableau*)
-  | NewArray of typ * expr list   (*dimensions*)
+  | NewArray of typ * expr list (*dimensions*)
 
 (* Accès mémoire : variable ou attribut d'un objet *)
 and mem_access =
   | Var of string (* Variable *)
   | Field of expr (* objet *) * string (* nom d'un attribut *)
-  | Array_var of string(* Variable de type array *) * expr list(* indice *)
+  | Array_var of
+    mem_access (* Variable de type array *) (* TODO mem -> expr (ca fait des shift reduce :( ))*)
+      * expr list (* indices par ex tab[1][2][3] -> (..., [1;2;3]) *)
 
 (* Instructions *)
-type instr = { instr : instr_ ;  loc : Lexing.position * Lexing.position}
+type instr = { instr : instr_; loc : Lexing.position * Lexing.position }
+
 and instr_ =
   (* Affichage d'un entier *)
   | Print of expr
@@ -95,12 +74,18 @@ and instr_ =
   | Return of expr
   (* Expression utilisée comme instruction *)
   | Expr of expr
+  (* Nouvellev portée *)
   | Scope of seq
-  | Declare of string list * typ * expr option
+  (* declaration de variable en tant qu'expression *)
+  | Declare of string list * typ * expr option (* si initialisé *)
 
 and seq = instr list
 
-type visibility = Public (*default*) | Private | Protected
+type visibility =
+  (*default*)
+  | Public
+  | Private
+  | Protected
 
 (* Définition de méthode
 
@@ -111,9 +96,9 @@ type method_def = {
   method_name : string;
   code : seq;
   params : (string * typ) list;
-  locals : (string * typ) list;
+  locals : (string * typ) list; (* 🚶🚶 *)
   return : typ;
-  default : bool;
+  default : bool; (* implementation par defaut dans interface *)
 }
 
 (* Définition de classe
@@ -126,7 +111,7 @@ type method_def = {
    paramètre implicite this. *)
 type class_def = {
   class_name : string;
-  generics : string list;
+  generics : string list; (* types generique *)
   attributes : (string * typ * visibility) list;
   methods : method_def list;
   parent : string option;
@@ -138,11 +123,7 @@ type class_def = {
    Syntaxe : interface <nom de l'interface> { ... }
 
 *)
-
-type interface_def = {
-  interface_name : string;
-  methods : method_def list;
-}
+type interface_def = { interface_name : string; methods : method_def list }
 
 (* Programme complet : variables globales, classes, et une séquence
    d'instructions *)
@@ -152,6 +133,34 @@ type program = {
   globals : (string * typ) list;
   main : seq;
 }
+
+
+
+let rec typ_of_string = function
+  | "int" -> TInt
+  | "bool" -> TBool
+  | "void" -> TVoid
+  | s ->
+      if Tools.is_valid_array_string s then
+        TArray (typ_of_string (String.sub s 0 (String.length s - 2)))
+      else TClass (s, [])
+
+let rec string_of_typ = function
+  | TVoid -> "void"
+  | TInt -> "int"
+  | TBool -> "bool"
+  | TClass (c, l) ->
+      c ^ "{"
+      (* :if Option.is_some l then string_of_typ (Option.get l) else "" *)
+      ^ List.fold_left (fun acc x -> acc ^ string_of_typ x ^ ", ") "" l
+      ^ "}"
+  | TArray t ->
+      let rec aux t acc =
+        match t with
+        | TArray t -> aux t ("[]" ^ acc)
+        | base_type -> string_of_typ base_type ^ acc
+      in
+      aux t "[]"
 
 let rec string_of_expr (e : expr) : string =
   let fmt = Printf.sprintf in
@@ -163,51 +172,77 @@ let rec string_of_expr (e : expr) : string =
   | Binop (biop, e1, e2) ->
       fmt "Biop(%s, %s, %s)" (string_of_biop biop) (string_of_expr e1)
         (string_of_expr e2)
-  | Get m -> "Get(" ^ (string_of_mem m) ^")"
+  | Get m -> "Get(" ^ string_of_mem m ^ ")"
   | This -> "This"
-  | New (c, gen) -> fmt "%s" c
-  | NewCstr (c,_ ,_) -> fmt "%s" c
-  | MethCall (e1, c, el) -> (string_of_expr e1) ^ (fmt "%s" c) ^ "(...)"
-  | NewArray (t, n) -> fmt "new %s%s" (string_of_typ t) (List.fold_left (fun acc x -> acc ^ "[" ^ (string_of_expr x) ^ "]") "" n)
-  | SuperCall(c, el) -> fmt "super.%s" c
-and string_of_unop unop = match unop with 
-  Opp -> "Opp" | Not -> "Not" 
-  | TypeCast (newType) -> "TypeCast("^( string_of_typ newType) ^ ")"
-  | InstanceOf (t) -> "InstanceOf ("^( string_of_typ t) ^ ")"
+  | New (c, gen) ->
+      fmt "New(%s,<" c
+      ^ List.fold_left (fun acc t -> acc ^ string_of_typ t ^ ", ") "" gen
+      ^ ">)"
+  | NewCstr (c, gen, args) ->
+      fmt "NewCstr(%s,<" c
+      ^ List.fold_left (fun acc t -> acc ^ string_of_typ t ^ ", ") "" gen
+      ^ ">, args: "
+      ^ List.fold_left (fun acc t -> acc ^ string_of_expr t ^ ", ") "" args
+      ^ ")"
+  | MethCall (e1, c, el) ->
+      "MethCall(on" ^ string_of_expr e1 ^ fmt ", calls %s" c ^ ", args: "
+      ^ List.fold_left (fun acc t -> acc ^ string_of_expr t ^ ", ") "" el
+      ^ ")"
+  | NewArray (t, n) ->
+      fmt "NewArray(%s, %s)" (string_of_typ t)
+        (List.fold_left (fun acc x -> acc ^ "[" ^ string_of_expr x ^ "]") "" n)
+  | SuperCall (c, el) ->
+      fmt "SuperCall(%s, args: " c
+      ^ List.fold_left (fun acc t -> acc ^ string_of_expr t ^ ", ") "" el
+      ^ ")"
+
+and string_of_unop unop =
+  match unop with
+  | Opp -> "Opp"
+  | Not -> "Not"
+  | TypeCast newType -> "TypeCast(" ^ string_of_typ newType ^ ")"
+  | InstanceOf t -> "InstanceOf (" ^ string_of_typ t ^ ")"
 
 and string_of_biop (biop : binop) : string =
-    match biop with
-    | Add -> "Add"
-    | Sub -> "Sub"
-    | Mul -> "Mul"
-    | Div -> "Div"
-    | Rem -> "Rem"
-    | Lt -> "Lt"
-    | Le -> "Le"
-    | Gt -> "Gt"
-    | Ge -> "Ge"
-    | Eq -> "Eq"
-    | Neq -> "Neq"
-    | And -> "And"
-    | Or -> "Or"
-    | StructEq -> "StructEq"
-    | NegStructEq -> "NegStructEq"
-  
+  match biop with
+  | Add -> "Add"
+  | Sub -> "Sub"
+  | Mul -> "Mul"
+  | Div -> "Div"
+  | Rem -> "Rem"
+  | Lt -> "Lt"
+  | Le -> "Le"
+  | Gt -> "Gt"
+  | Ge -> "Ge"
+  | Eq -> "Eq"
+  | Neq -> "Neq"
+  | And -> "And"
+  | Or -> "Or"
+  | StructEq -> "StructEq"
+  | NegStructEq -> "NegStructEq"
 
 and string_of_mem = function
-    | Var name -> name
-    | Field (obj, field_name) -> (
-      (string_of_expr obj) ^ "." ^ field_name
-    )
-    | Array_var (name, i) -> name ^ List.fold_left (fun acc x -> acc^"[" ^ (string_of_expr x) ^ "]" ) "" i
-    
+  | Var name -> "Var(" ^ name ^ ")"
+  | Field (obj, field_name) ->
+      "Field(" ^ string_of_expr obj ^ ", " ^ field_name ^ ")"
+  | Array_var (name, i) ->
+      "Array_var(" ^ string_of_mem name ^ ", "
+      ^ List.fold_left (fun acc x -> acc ^ "[" ^ string_of_expr x ^ "]") "" i
+      ^ ")"
 
 let string_of_instr = function
-  | Print e -> "print"
-  | Set (m,v) -> "set"
-  | If (c,i,e) -> "if"
-  | While (c,s)-> "while"
-  | Return e -> "return"
-  | Expr e -> "expr"
-  | Scope s -> "scope"
-  | Declare (v,t,value) -> "declare " ^ (List.fold_left (fun acc x -> acc ^ " "^ x) "" v)
+  | Print e -> "Print(" ^ string_of_expr e ^ ")"
+  | Set (m, v) -> "Set("^ string_of_mem m ^ ")"
+  | If (c, i, e) -> "If(" ^ string_of_expr c ^ ", _, _)"
+  | While (c, s) -> "While(" ^ string_of_expr c ^ ", _)"
+  | Return e -> "Return(" ^ string_of_expr e ^ ")"
+  | Expr e -> "Expr(" ^ string_of_expr e ^ ")"
+  | Scope s -> "Scope(_)"
+  | Declare (v, t, value) ->
+    let valstring = match value with
+    | None -> ""
+    | Some s -> " = "^ string_of_expr s 
+    in
+      "Declare(" ^ List.fold_left (fun acc x -> acc ^ " " ^ x) "" v ^", "^ (string_of_typ t) ^ valstring
+
+let expr_from a expr = {annot=expr.annot; expr=a; loc=expr.loc}

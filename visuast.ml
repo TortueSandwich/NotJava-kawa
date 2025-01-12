@@ -125,7 +125,7 @@ and mem_to_dot withid (m : Kawa.mem_access) =
         create_node_and_connections withid el ~ordered:true
     in
     let id_var = fresh_id () in
-    let varnode = create_node id_var s "" in
+    let varnode = create_node id_var (string_of_mem s) "" in
     let cons = create_connection withid id_var ~label:"array" in
     (currnode ::varnode :: argnodes, cons :: argcon)
   (* | _ -> let node = create_node withid "Non traité (memory)" "" in ([ node ], []) *)
