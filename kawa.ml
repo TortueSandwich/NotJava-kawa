@@ -56,7 +56,9 @@ and mem_access =
   | Var of string (* Variable *)
   | Field of expr (* objet *) * string (* nom d'un attribut *)
   | Array_var of
-    mem_access (* Variable de type array *) (* TODO mem -> expr (ca fait des shift reduce :( ))*)
+      mem_access
+      (* Variable de type array *)
+      (* TODO mem -> expr (ca fait des shift reduce :( ))*)
       * expr list (* indices par ex tab[1][2][3] -> (..., [1;2;3]) *)
 
 (* Instructions *)
@@ -133,8 +135,6 @@ type program = {
   globals : (string * typ) list;
   main : seq;
 }
-
-
 
 let rec typ_of_string = function
   | "int" -> TInt
@@ -232,17 +232,47 @@ and string_of_mem = function
 
 let string_of_instr = function
   | Print e -> "Print(" ^ string_of_expr e ^ ")"
-  | Set (m, v) -> "Set("^ string_of_mem m ^ ")"
+  | Set (m, v) -> "Set(" ^ string_of_mem m ^ ")"
   | If (c, i, e) -> "If(" ^ string_of_expr c ^ ", _, _)"
   | While (c, s) -> "While(" ^ string_of_expr c ^ ", _)"
   | Return e -> "Return(" ^ string_of_expr e ^ ")"
   | Expr e -> "Expr(" ^ string_of_expr e ^ ")"
   | Scope s -> "Scope(_)"
   | Declare (v, t, value) ->
-    let valstring = match value with
-    | None -> ""
-    | Some s -> " = "^ string_of_expr s 
-    in
-      "Declare(" ^ List.fold_left (fun acc x -> acc ^ " " ^ x) "" v ^", "^ (string_of_typ t) ^ valstring
+      let valstring =
+        match value with None -> "" | Some s -> " = " ^ string_of_expr s
+      in
+      "Declare("
+      ^ List.fold_left (fun acc x -> acc ^ " " ^ x) "" v
+      ^ ", " ^ string_of_typ t ^ valstring
 
-let expr_from a expr = {annot=expr.annot; expr=a; loc=expr.loc}
+(* pas fou *)
+let expr_from a expr = { annot = expr.annot; expr = a; loc = expr.loc }
+
+let type_of_unop = function
+  | Opp -> TInt
+  | Not -> TBool
+  | TypeCast newType -> newType
+  | InstanceOf _ -> TBool
+
+let type_of_binop = function
+  | Add | Sub | Mul | Div | Rem -> TInt
+  | Lt | Le | Gt | Ge | Eq | Neq | And | Or | StructEq | NegStructEq -> TBool
+
+let find_class_def p class_name =
+  List.find_opt (fun cls -> cls.class_name = class_name) p.classes
+
+let rec get_familly p classdef =
+  match classdef.parent with
+  | None -> []
+  | Some pname -> (
+      match find_class_def p pname with
+      | None -> failwith "todo"
+      | Some pardef -> pardef :: get_familly p pardef)
+
+let find_interface_def p interface_name = 
+  List.find_opt (fun i -> i.interface_name = interface_name) p.interfaces
+
+let is_primitive = function
+| TClass _ -> false
+| _ -> false

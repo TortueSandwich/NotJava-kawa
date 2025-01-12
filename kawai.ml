@@ -184,14 +184,17 @@ let () =
         eprintf "\027[91minterpreter error: \027[0m%s@." "oueetqt";
         (* s; *)
         exit 1
-    | Typechecker.TypeCheckerError (err,loc) -> 
+      | Typechecker.TpError (e) -> 
+        eprintf "\027[91mTypechecker error: \027[0m%s@." "oueetqt";
+        (* exit 1 *)
+    (* | Typechecker.TypeCheckerError (err,loc) -> 
         match err with 
         | Typechecker.TypeError s -> eprintf "\027[91mType error: \027[0m%s@.\n" s; report loc ;
         | Typechecker.IndexOutOfBounds -> eprintf "\027[91mCompile Time error: \027[0m Index out of bounds@.\n" ; report loc ;
         | Typechecker.DimensionMismatch -> eprintf "\027[91mType error: \027[0m Dimension Mismatch@.\n" ; report loc ;
         | Typechecker.TypeCastError s -> eprintf"\027[91mTypeCast error: \027[0m%s@.\n" s; report loc ;
         | Typechecker.NotFound s -> eprintf "\027[91mUnknown Reference: \027[0m%s@.\n" s; report loc ;
-        | Typechecker.CompileTimeError s -> eprintf "\027[91mCompileTimeError: \027[0m%s@.\n" s; report loc ;
+        | Typechecker.CompileTimeError s -> eprintf "\027[91mCompileTimeError: \027[0m%s@.\n" s; report loc ; *)
 
         exit 1
     | Stack_env.EnvError e ->

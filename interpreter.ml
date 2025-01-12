@@ -23,6 +23,8 @@ exception IError of error
 (* exception Error of string *)
 exception Return of value
 
+let iraise e = raise (IError e)
+
 module ValueType = struct
   type t = value
 
@@ -63,7 +65,7 @@ let rec create_array dims t =
       | TVoid -> VArray (Array.make dim Null)
       | TClass _ -> VArray (Array.make dim Null)
       | TArray t ->
-          let core_type = Typechecker.get_array_core_type t in
+          let core_type = Typechecker.elem_type t in
           VArray (Array.make dim (init_value core_type)))
   | dim :: rest -> VArray (Array.make dim (create_array rest t))
 
@@ -97,9 +99,9 @@ let array_of_value v =
 
 (* main attraction *)
 let exec_prog (p : program) : unit =
-  let find_class_def class_name = find_class_def class_name p.classes in
+  let find_class_def class_name = find_class_def p class_name in
   let find_interface_def interface_name =
-    find_interface_def interface_name p.interfaces
+    find_interface_def p interface_name
   in
   let get_interfaces_from_class class_name =
     let c = find_class_def class_name in
@@ -107,10 +109,9 @@ let exec_prog (p : program) : unit =
       (fun acc name -> find_interface_def name :: acc)
       [] c.implemented_interfaces
   in
-  let check_subtype objective curr =
-    check_subtype objective curr find_class_def
-  in
-  let iraise e = raise (IError e) in
+  let (<:) a b = check_subtype p b a in
+  let (<:?) a b = if not (a <: b) then SubTypeError(a, b) |> tpraise in
+  
   let findclass class_name =
     List.find (fun x -> x.class_name = class_name) p.classes
   in
@@ -172,16 +173,18 @@ let exec_prog (p : program) : unit =
       | Not -> VBool (not (evalb e env_stack))
       | TypeCast newType -> (
           let v_e = eval e env_stack in
-          try
-            check_subtype newType (typ_of_value v_e);
+          (* try *)
+            newType <:? (typ_of_value v_e);
             v_e
-          with Typechecker.TypeError s ->
-            let f = (fst e.loc).pos_fname in
-            Typechecker.error (s ^ Tools.report_bug e.loc f))
+          (* with _ ->  failwith "todo" *)
+          )
+          (* Typechecker.TypeError s -> *)
+            (* let f = (fst e.loc).pos_fname in
+            Typechecker.error (s ^ Tools.report_bug e.loc f)) *)
       | InstanceOf t -> (
           let v_e = eval e env_stack in
           try
-            check_subtype t (typ_of_value v_e);
+            t <:?(typ_of_value v_e);
             VBool true
           with _ -> VBool false)
     and evalbinop binop (e1 : expr) (e2 : expr) env_stack =
