@@ -55,19 +55,21 @@ let rec init_value = function
   | TVoid -> Null
   | TArray t -> VArray (Array.make 0 (init_value t))
 
-let rec create_array dims t =
-  match dims with
-  | [] -> failwith "Dimensions list cannot be empty"
-  | [ dim ] -> (
-      match t with
-      | TInt -> VArray (Array.make dim (VInt 0))
-      | TBool -> VArray (Array.make dim (VBool false))
-      | TVoid -> VArray (Array.make dim Null)
-      | TClass _ -> VArray (Array.make dim Null)
-      | TArray t ->
-          let core_type = Typechecker.elem_type t in
-          VArray (Array.make dim (init_value core_type)))
-  | dim :: rest -> VArray (Array.make dim (create_array rest t))
+  let rec create_array dims t =
+    match dims with
+    | [] -> failwith "Dimensions list cannot be empty"
+    | [dim] -> (
+        match t with
+        | TInt -> VArray (Array.init dim (fun _ -> VInt 0))
+        | TBool -> VArray (Array.init dim (fun _ -> VBool false))
+        | TVoid -> VArray (Array.init dim (fun _ -> Null))
+        | TClass _ -> VArray (Array.init dim (fun _ -> Null))
+        | TArray t ->
+            let core_type = Typechecker.elem_type t in
+            VArray (Array.init dim (fun _ -> init_value core_type)))
+    | dim :: rest -> 
+        VArray (Array.init dim (fun _ -> create_array rest t))
+  
 
 let report_bug (e : expr) = Tools.report_bug e.loc (fst e.loc).pos_fname
 
@@ -306,21 +308,21 @@ let exec_prog (p : program) : unit =
               (*todo v2 hahahaha :')*)
               let evaled_index = List.map (fun x -> evali x env_stack) i in
               let arr = array_of_value v in
-              let arr = ref arr in
               (* todo pouvoir set des array ? *)
               let rec aux a indexes =
                 match indexes with
                 | [] -> DimensionMismatch e |> iraise
+                | hd :: [] -> (
+                              
+                              match a.(hd) with
+                              | VArray a -> DimensionMismatch e |> iraise (*pas assez d'indices*)
+                              | _ -> a.(hd) <- eval e env_stack)
                 | hd :: tl -> (
-                    let elem = !a.(hd) in
                     (* let subarr = array_of_value elem in *)
-                    match elem with
-                    | VArray a -> aux (ref a) tl
-                    | _ when tl = [] -> (
-                        try !a.(hd) <- eval e env_stack
-                        with Invalid_argument _ ->
-                          InvalidIndex (e, elem) |> iraise)
-                    | _ -> DimensionMismatch e |> iraise)
+                    match a.(hd) with
+                    | VArray a -> aux a tl
+                    | _ -> DimensionMismatch e |> iraise
+                    )
               in
               aux arr evaled_index)
       | Return e -> raise (Return (eval e env_stack))
