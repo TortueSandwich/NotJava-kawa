@@ -1,5 +1,7 @@
 open Kawa
-open Typechecker (*Pour importer check_subtype*)
+
+(* open Typechecker *)
+open Find
 
 type value =
   | Null
@@ -12,18 +14,18 @@ and obj = { cls : string; fields : (string, value) Hashtbl.t }
 
 type error =
   | DimensionMismatch of expr
-  | NotFound
+  | NotFound of string
   | NotIndexable of value
   | InvalidIndex of expr * value
   | Division_by_zero of expr
   | Anomaly
+  | UnexpectedType of typ * typ
 
-exception IError of error
-
-(* exception Error of string *)
+exception IError of error * loc option
 exception Return of value
 
-let iraise e = raise (IError e)
+let iraise e = raise (IError (e, None))
+let localized_iraise e loc = raise (IError (e, (Some loc)))
 
 module ValueType = struct
   type t = value
@@ -58,32 +60,22 @@ let rec init_value = function
 let rec create_array dims t =
   match dims with
   | [] -> failwith "Dimensions list cannot be empty"
-  | [ dim ] -> (
-      match t with
-      | TInt -> VArray (Array.make dim (VInt 0))
-      | TBool -> VArray (Array.make dim (VBool false))
-      | TVoid -> VArray (Array.make dim Null)
-      | TClass _ -> VArray (Array.make dim Null)
-      | TArray t ->
-          let core_type = Typechecker.elem_type t in
-          VArray (Array.make dim (init_value core_type)))
-  | dim :: rest -> VArray (Array.make dim (create_array rest t))
+  | [ dim ] ->
+      let creator f = VArray (Array.init dim f) in
+      let initvalue =
+        match t with
+        | TInt -> VInt 0
+        | TBool -> VBool false
+        | TVoid -> Null
+        | TClass _ -> Null
+        | TArray t ->
+            let core_type = Typechecker.elem_type t in
+            init_value core_type
+      in
+      creator (fun _ -> initvalue)
+  | dim :: rest -> VArray (Array.init dim (fun _ -> create_array rest t))
 
-let report_bug (e : expr) = Tools.report_bug e.loc (fst e.loc).pos_fname
-
-(* let rec get_elem_from_indices (e : expr) value indexes =
-  match indexes with
-  | [] -> Typechecker.error ("Dimension mismatch" ^ report_bug e)
-  | hd :: tl -> (
-      let elem = value.(hd) in
-      match elem with
-      | VArray a -> get_elem_from_indices e a tl
-      | _ ->
-          if tl = [] then elem
-          else Typechecker.error ("Dimension mismatch" ^ report_bug e)) *)
-
-let rec get_elem_from_indices (e : expr) value indexes : (value, error) Result.t
-    =
+let rec get_elem_from_indices e value indexes =
   match indexes with
   | [] -> Error (DimensionMismatch e)
   | hd :: tl -> (
@@ -95,60 +87,47 @@ let rec get_elem_from_indices (e : expr) value indexes : (value, error) Result.t
 
 (** RAISE NotIndexable si type nonindexable*)
 let array_of_value v =
-  match v with VArray a -> a | _ -> raise (IError (NotIndexable v))
+  match v with VArray a -> a | _ -> raise (IError ((NotIndexable v), None))
 
-(* main attraction *)
+let rec ( === ) v1 v2 =
+  match (v1, v2) with
+  | VInt a, VInt b -> a = b
+  | VBool a, VBool b -> a = b
+  | Null, Null -> true
+  | VObj o1, VObj o2 ->
+      assert (o1.cls = o2.cls);
+      List.for_all2 ( === )
+        (hashtable_values o1.fields)
+        (hashtable_values o2.fields)
+  | VArray a1, VArray a2 -> Array.for_all2 ( === ) a1 a2
+  | _, _ -> Anomaly |> iraise (* should have been typechecked*)
+
+let ( =/= ) v1 v2 = not (v1 === v2)
+
+(* Main attraction *)
 let exec_prog (p : program) : unit =
-  let find_class_def class_name = find_class_def p class_name in
-  let find_interface_def interface_name =
-    find_interface_def p interface_name
-  in
-  let get_interfaces_from_class class_name =
-    let c = find_class_def class_name in
-    List.fold_left
-      (fun acc name -> find_interface_def name :: acc)
-      [] c.implemented_interfaces
-  in
-  let findclass class_name =
-    List.find (fun x -> x.class_name = class_name) p.classes
-  in
+  let find_class_def = find_class_def p in
+
   let alloc class_name =
-    let c = findclass class_name in
+    let c = find_class_def class_name in
     let vartable =
       List.map (fun (name, _, _) -> (name, Null)) c.attributes
       |> List.to_seq |> Hashtbl.of_seq
     in
     { cls = class_name; fields = vartable }
   in
+  let env_get loc env name =
+    try Env.find env name
+    with Stack_env.EnvError (UndefinedVariable s) ->
+      localized_iraise (NotFound name) loc
+  in
 
-  let rec eval_call f this args =
+  let rec eval_call fname this args =
     let defclass = List.find (fun cls -> cls.class_name = this.cls) p.classes in
-    let rec findmethod (defclass : class_def) =
-      let definterfaces = get_interfaces_from_class defclass.class_name in
-      match
-        List.find_opt
-          (fun m -> m.method_name = f)
-          (defclass.methods
-          @ List.filter
-              (fun x -> x.default = true)
-              (List.flatten
-                 (List.map (fun inter -> inter.methods) definterfaces)))
-      with
-      | Some m -> m
-      | None -> (
-          match defclass.parent with
-          | Some parent ->
-              List.find (fun cls -> cls.class_name = parent) p.classes
-              |> findmethod
-          | None ->
-              iraise NotFound
-              (* ("Method " ^ f ^ " not found in " ^ defclass.class_name) *)
-              (* todo *))
-    in
-    let method_def = findmethod defclass in
+    let method_def = find_method_locally_def p defclass fname in
     let method_stack = Env.new_env_stack () in
     let method_env = Env.new_env method_stack in
-    (* ajoutarg et this dans env *)
+    (* ajoute arg et this dans l'env de la methode *)
     Env.define_locally method_env "this" (VObj this);
     List.iter2
       (fun (param_name, _) arg -> Env.define_locally method_env param_name arg)
@@ -165,25 +144,19 @@ let exec_prog (p : program) : unit =
     and evalo (e : expr) env_stack =
       match eval e env_stack with VObj o -> o | _ -> assert false
     and evalunop unop (e : expr) env_stack =
-      let (<:) a b = check_subtype e.loc p b a in
-      let (<:?) a b = if not (a <: b) then SubTypeError(a, b) |> tpraise in
+      let ( <: ) a b = Find.check_subtype p b a in
+      let ( <:? ) a b = if not (a <: b) then UnexpectedType (a, b) |> iraise in
       match unop with
       | Opp -> VInt (-evali e env_stack)
       | Not -> VBool (not (evalb e env_stack))
-      | TypeCast newType -> (
+      | TypeCast newType ->
           let v_e = eval e env_stack in
-          (* try *)
-            newType <:? (typ_of_value v_e);
-            v_e
-          (* with _ ->  failwith "todo" *)
-          )
-          (* Typechecker.TypeError s -> *)
-            (* let f = (fst e.loc).pos_fname in
-            Typechecker.error (s ^ Tools.report_bug e.loc f)) *)
+          typ_of_value v_e <:? newType;
+          v_e
       | InstanceOf t -> (
           let v_e = eval e env_stack in
           try
-            t <:?(typ_of_value v_e);
+            t <:? typ_of_value v_e;
             VBool true
           with _ -> VBool false)
     and evalbinop binop (e1 : expr) (e2 : expr) env_stack =
@@ -192,20 +165,6 @@ let exec_prog (p : program) : unit =
       let int_to_bool_op f =
         VBool (f (evali e1 env_stack) (evali e2 env_stack))
       in
-      let rec ( === ) v1 v2 =
-        match (v1, v2) with
-        | VInt a, VInt b -> a = b
-        | VBool a, VBool b -> a = b
-        | Null, Null -> true
-        | VObj o1, VObj o2 ->
-            assert (o1.cls = o2.cls);
-            List.for_all2 ( === )
-              (hashtable_values o1.fields)
-              (hashtable_values o2.fields)
-        | VArray a1, VArray a2 -> Array.for_all2 ( === ) a1 a2
-        | _, _ -> Anomaly |> iraise (* should have been typechecked*)
-      in
-      let ( =/= ) v1 v2 = not (v1 === v2) in
       match binop with
       | Add -> int_op ( + )
       | Sub -> int_op ( - )
@@ -227,12 +186,13 @@ let exec_prog (p : program) : unit =
       | NegStructEq -> VBool (eval e1 env_stack =/= eval e2 env_stack)
     and eval (e : expr) env_stack : value =
       (* print_endline ("evaluation de " ^ string_of_expr e); *)
+      let env_get = env_get e.loc in
       match e.expr with
       | Int n -> VInt n
       | Bool b -> VBool b
       | Unop (u, e) -> evalunop u e env_stack
       | Binop (u, e1, e2) -> evalbinop u e1 e2 env_stack
-      | Get (Var name) -> Env.find env_stack name
+      | Get (Var name) -> env_get env_stack name
       | Get (Field (obj, field_name)) ->
           let o = evalo obj env_stack in
           Hashtbl.find o.fields field_name
@@ -245,7 +205,7 @@ let exec_prog (p : program) : unit =
           match get_elem_from_indices e arr int_idxs with
           | Ok e -> e
           | Error e -> iraise e)
-      | This -> Env.find env_stack "this"
+      | This -> env_get env_stack "this"
       | New (class_name, g) -> VObj (alloc class_name)
       | NewCstr (class_name, gene, args) ->
           let instance = alloc class_name in
@@ -261,9 +221,9 @@ let exec_prog (p : program) : unit =
           let evaled_args = List.map (fun x -> eval x env_stack) args in
           eval_call meth_name (evalo obj env_stack) evaled_args
       | SuperCall (meth_name, args) ->
-          let vobj = Env.find env_stack "this" in
+          let vobj = env_get env_stack "this" in
           let obj = match vobj with VObj o -> o | _ -> assert false in
-          let parent = (findclass obj.cls).parent in
+          let parent = (find_class_def obj.cls).parent in
           let parent_name =
             match parent with Some p -> p | None -> assert false
           in
@@ -306,20 +266,18 @@ let exec_prog (p : program) : unit =
               (*todo v2 hahahaha :')*)
               let evaled_index = List.map (fun x -> evali x env_stack) i in
               let arr = array_of_value v in
-              let arr = ref arr in
               (* todo pouvoir set des array ? *)
               let rec aux a indexes =
                 match indexes with
                 | [] -> DimensionMismatch e |> iraise
+                | hd :: [] -> (
+                    match a.(hd) with
+                    | VArray a ->
+                        DimensionMismatch e |> iraise (*pas assez d'indices*)
+                    | _ -> a.(hd) <- eval e env_stack)
                 | hd :: tl -> (
-                    let elem = !a.(hd) in
-                    (* let subarr = array_of_value elem in *)
-                    match elem with
-                    | VArray a -> aux (ref a) tl
-                    | _ when tl = [] -> (
-                        try !a.(hd) <- eval e env_stack
-                        with Invalid_argument _ ->
-                          InvalidIndex (e, elem) |> iraise)
+                    match a.(hd) with
+                    | VArray a -> aux a tl
                     | _ -> DimensionMismatch e |> iraise)
               in
               aux arr evaled_index)

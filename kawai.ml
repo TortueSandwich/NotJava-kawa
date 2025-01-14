@@ -180,24 +180,32 @@ let () =
         eprintf "\027[91msyntax error:\027[0m Unexpected token: %s\n"
           (Kawalexer.token_to_string (Kawalexer.token lb));
         exit 1
-    | Interpreter.IError s ->
-        eprintf "\027[91minterpreter error: \027[0m%s@." "oueetqt";
+    | Interpreter.IError(e, loc) ->
+        eprintf "\027[91minterpreter error: \027[0m.\n";
+        (match e with 
+        | DimensionMismatch (expr) -> eprintf "dimension missmatch";
+        | NotFound (s) -> eprintf "%s was not found" s;
+        | NotIndexable value -> eprintf "%s is not indexable" (Interpreter.ValueType.string_of_value value);
+        | InvalidIndex (expr , value) -> eprintf "%s is not a valid index" (Kawa.string_of_expr expr)
+        | Division_by_zero expr -> eprintf "Divisionby zero";
+        | Anomaly -> eprintf "anormal 👽";
+        | UnexpectedType (typ1 , typ2) -> eprintf "expected %s got %s" (Kawa.string_of_typ typ1) (Kawa.string_of_typ typ2);
+        );
         (* s; *)
         exit 1
       | Typechecker.TpError (e, loc) -> 
         eprintf "\027[91mTypechecker error: \027[0m@.";
         if Option.is_some loc then begin
           print_string "got some localisation :)\n";
-          let loc = Option.get loc in report loc
+          let loc = Option.get loc in 
+          report loc;
+          print_endline "";
         end else print_string "No localisation :(\n";
         begin
         match e with
         | VariableNotFound varname -> eprintf "Variable not found : %s" varname;
+        (* | AlreadyDeclared varname -> eprintf "Variable already declared : %s" varname; *)
         | DimensionMismatch -> eprintf "Missmatched dimension";
-        | ClassNotFound classname -> eprintf "Class not found : %s" classname;
-        | InterfaceNotFound inter_name -> eprintf "Interface not found : %s" inter_name;
-        | MethodNotFound math_name -> eprintf "Method not found : %s" math_name;
-        | FieldNotFound (field_name,classname) -> eprintf "Field %s not found in%s" field_name classname;
         | NoParent classname -> eprintf "%s doesnt have any parent" classname;
         | SuperMain -> eprintf "Why would you call superin main ? Do you know what you are doing ?";
         | UnAutorizeAccess (var, prio) -> eprintf "%s cant be accessed here because it is defined as %s" var (Kawa.string_of_visibility prio);
@@ -205,7 +213,7 @@ let () =
         | NotIndexable t -> eprintf "cannot index type %s" (Kawa.string_of_typ t);
         | UnexpectedType (exp, got) -> eprintf "expected %s but got %s" (Kawa.string_of_typ exp) (Kawa.string_of_typ got);
         | SubTypeError (a, b) -> eprintf "%s is not a subtype of %s" (Kawa.string_of_typ a) (Kawa.string_of_typ b);
-        | PrimitiveSubtype -> eprintf "a primitive typecannot be subtype"
+        | PrimitiveTypeCast t -> eprintf "Cannot typecast as a primitivetype (%s)" (Kawa.string_of_typ t);
         | DifferentSignature(a,b) -> eprintf "%s has different signatures" a.method_name;
 
         end;
@@ -224,6 +232,13 @@ let () =
     | Stack_env.EnvError e ->
       eprintf "\027[91mEnvironment error:\027[0m %s@." (Stack_env.string_of_env_error e);
       exit 1
+    | Find.FError e ->(
+      match e with 
+      | ClassNotFound(classname, others) -> eprintf "Class not found : %s" classname;
+      | InterfaceNotFound (name, others) -> eprintf "Interface not found : %s" name;
+      | MethodNotFound (name, others) -> eprintf "Method not found : %s" name;
+      | AttributNotFoud (name, _) ->eprintf "Attribute not found : %s" name;
+    )
     | e ->
         eprintf "%s\n@." (custom_printexc_to_string e); 
         report (lexeme_start_p lb, lexeme_end_p lb);
