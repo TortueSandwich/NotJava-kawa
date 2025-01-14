@@ -210,6 +210,7 @@ let () =
         (* | AlreadyDeclared varname -> eprintf "Variable already declared : %s" varname; *)
         | DimensionMismatch -> eprintf "Missmatched dimension"
         | NoParent classname -> eprintf "%s doesnt have any parent" classname
+        | FinalMutation(field, clsname) -> eprintf "Cannot mutate %s.%s as it is declared final" clsname field
         | SuperMain ->
             eprintf
               "Why would you call superin main ? Do you know what you are \

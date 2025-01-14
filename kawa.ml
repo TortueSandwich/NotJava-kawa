@@ -114,7 +114,7 @@ type method_def = {
 type class_def = {
   class_name : string;
   generics : string list; (* types generique *)
-  attributes : (string * typ * visibility) list;
+  attributes : (string * typ * visibility * bool) list; (* true if mutable*)
   methods : method_def list;
   parent : string option;
   implemented_interfaces : string list;
@@ -263,20 +263,6 @@ let type_of_unop = function
 let type_of_binop = function
   | Add | Sub | Mul | Div | Rem -> TInt
   | Lt | Le | Gt | Ge | Eq | Neq | And | Or | StructEq | NegStructEq -> TBool
-
-let find_class_def p class_name =
-  List.find_opt (fun cls -> cls.class_name = class_name) p.classes
-
-let rec get_familly p classdef =
-  match classdef.parent with
-  | None -> []
-  | Some pname -> (
-      match find_class_def p pname with
-      | None -> failwith "todo"
-      | Some pardef -> pardef :: get_familly p pardef)
-
-let find_interface_def p interface_name = 
-  List.find_opt (fun i -> i.interface_name = interface_name) p.interfaces
 
 let is_primitive = function
 | TClass _ -> false

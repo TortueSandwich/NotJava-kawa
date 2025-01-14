@@ -154,6 +154,6 @@ let rec realtypeofgeneric classdef genericstypes vartype =
   res
 
 let find_attribut_locally classdef attrname =
-  match List.find_opt (fun (k, _, _) -> k = attrname) classdef.attributes with
+  match List.find_opt (fun (k, _, _, _) -> k = attrname) classdef.attributes with
   | None -> AttributNotFoud (attrname, classdef) |> fraise
   | Some a -> a

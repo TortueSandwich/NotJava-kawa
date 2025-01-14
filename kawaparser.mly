@@ -22,6 +22,7 @@
 %token EXCLAMATION
 %token TINT TBOOL TVOID
 %token INSTANCEOF, AS
+%token FINAL
 
 %token GENERIC
 %token PUBLIC PRIVATE PROTECTED
@@ -162,12 +163,15 @@ interface_def:
 }
 ;
 
+final:
+| f=FINAL? {Option.is_none f}
+
 
 attr_decl:
-| ATTRIBUTE t=kawatype s=IDENT semi_handled {(s,t, Public)}
-| PUBLIC ATTRIBUTE t=kawatype s=IDENT semi_handled {(s,t, Public)}
-| PRIVATE ATTRIBUTE t=kawatype s=IDENT semi_handled {(s,t, Private)}
-| PROTECTED ATTRIBUTE t=kawatype s=IDENT semi_handled {(s,t, Protected)}
+| f=final ATTRIBUTE t=kawatype s=IDENT semi_handled {(s,t, Public, f)}
+| PUBLIC f=final ATTRIBUTE t=kawatype s=IDENT semi_handled {(s,t, Public,f)}
+| PRIVATE f=final ATTRIBUTE t=kawatype s=IDENT semi_handled {(s,t, Private,f)}
+| PROTECTED f=final ATTRIBUTE t=kawatype s=IDENT semi_handled {(s,t, Protected,f)}
 ;
 
 

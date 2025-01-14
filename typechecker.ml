@@ -18,6 +18,7 @@ type error =
   | InterfaceNotFound of string * string list
   | MethodNotFound of string * string list
   | AttributNotFoud of string * string list
+  | FinalMutation of string * string
 (* | AlreadyDeclared of string *)
 
 exception TpError of error * loc option
@@ -39,17 +40,11 @@ let array_of_value t =
 
 let rec elem_type = function TArray t -> elem_type t | t -> t
 
-(*
-  List.find (fun i -> i.interface_name = interface_name) interfaces
-  with Not_found -> raise (NotFound (
-  "Interface not found: " ^ interface_name ^ (
-  match closest_string interface_name (List.map (fun i -> i.interface_name) interfaces) with
-     | Some closest -> ", did you mean " ^ closest ^ " ?\n"
-     | None -> ""))) *)
-
 let objname_of_typ = function
   | TClass (clsname, gener) -> clsname
   | _ -> assert false
+
+let can_edit_final = ref false
 
 (** main attraction *)
 let typecheck_prog (p : program) : program =
@@ -152,7 +147,7 @@ let typecheck_prog (p : program) : program =
         | StructEq | NegStructEq ->
             typed_e2.annot <:? typed_e1.annot;
             derive_expr TBool resexpr)
-    | Get m -> derive_expr (type_mem_access m env_stack e.loc) e.expr
+    | Get m -> derive_expr (type_mem_access m env_stack e.loc false) e.expr
     | This ->
         let c = env_get env_stack "this" in
         derive_expr c e.expr
@@ -203,7 +198,7 @@ let typecheck_prog (p : program) : program =
         let typed_n = List.map (fun x -> check_expr x env_stack) n in
         List.iter (fun x -> x.annot <:? TInt) typed_n;
         derive_expr e.annot (NewArray (t, typed_n))
-  and type_mem_access m stack_env loc : typ =
+  and type_mem_access m stack_env loc is_access_mutable: typ =
     let tpraise err = localized_tpraise err loc in
     let ( <:? ) a b = if not (a <: b) then UnexpectedType (a, b) |> tpraise in
     let env_get = env_get loc in
@@ -217,10 +212,7 @@ let typecheck_prog (p : program) : program =
           | _ -> DimensionMismatch |> tpraise)
     in
     match m with
-    | Var name ->
-        env_get stack_env name
-        (* let closest = closest_string name (Env.get_all_names stack_env) in
-          let s = name ^ if closest <> Some "" then ", did you mean " ^ Option.get closest ^ " ?\n" else "" *)
+    | Var name -> env_get stack_env name
     | Field (obj, field_name) ->
         let obj = check_expr obj stack_env in
         let { annot = objtpye; expr = eou } = obj in
@@ -231,7 +223,8 @@ let typecheck_prog (p : program) : program =
         in
         let rec find_familly c courrant =
           try
-            let _, res, visible = find_attribut_locally c field_name in
+            let _, res, visible, ismutable = find_attribut_locally c field_name in
+            if is_access_mutable && not !can_edit_final && not ismutable then FinalMutation (field_name, cls_name) |> tpraise;
             (if eou <> This then
                match visible with
                | Public -> ()
@@ -248,12 +241,9 @@ let typecheck_prog (p : program) : program =
         in
         find_familly class_def true
     | Array_var (name, l) ->
-        let t = type_mem_access name stack_env loc in
+        let t = type_mem_access name stack_env loc is_access_mutable in
         reduce_dim t l
-  (* let closest = closest_string name (Env.get_all_names stack_env) in  *)
-  (* raise (NotFound("Undeclared variable: " ^ name ^ (if closest <> (Some("")) then *)
-  (* ", did you mean " ^ (Option.get closest) ^ " ?\n" else ""))) *)
-  (* ) *)
+
   and check_instr i ret stack_env : instr =
     let derive_instr newi = { instr = newi; loc = i.loc } in
     let tpraise err = localized_tpraise err i.loc in
@@ -279,7 +269,7 @@ let typecheck_prog (p : program) : program =
         derive_instr new_instr
     | Set (m, e) ->
         let typed_e = check_expr e stack_env in
-        let expect_type = type_mem_access m stack_env i.loc in
+        let expect_type = type_mem_access m stack_env i.loc true in
         typed_e.annot <:? expect_type;
         derive_instr (Set (m, typed_e))
     | Return e ->
@@ -340,7 +330,7 @@ let typecheck_prog (p : program) : program =
       let global_env = Env.new_env_stack () in
       let class_stack_env = Env.new_env global_env in
       List.iter
-        (fun (x, t, _) -> Env.define_locally class_stack_env x t)
+        (fun (x, t, _, _) -> Env.define_locally class_stack_env x t)
         c.attributes;
       Env.define_locally class_stack_env "this"
         (TClass (c.class_name, List.map (fun x -> TClass (x, [])) c.generics));
@@ -349,9 +339,12 @@ let typecheck_prog (p : program) : program =
         let method_stack = Env.new_env class_stack_env in
         List.iter (fun (x, t) -> Env.define_locally method_stack x t) m.locals;
         List.iter (fun (x, t) -> Env.define_locally method_stack x t) m.params;
+        can_edit_final := String.equal m.method_name  "constructor";
+        let code = check_seq m.code m.return method_stack in
+        can_edit_final := false;
         {
           method_name = m.method_name;
-          code = check_seq m.code m.return method_stack;
+          code = code;
           params = m.params;
           locals = m.locals;
           return = m.return;
