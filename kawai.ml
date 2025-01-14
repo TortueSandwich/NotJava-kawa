@@ -196,14 +196,14 @@ let () =
       | Typechecker.TpError (e, loc) -> 
         eprintf "\027[91mTypechecker error: \027[0m@.";
         if Option.is_some loc then begin
-          print_string "got some localisation :)\n";
+          (* print_string "got some localisation :)\n"; *)
           let loc = Option.get loc in 
           report loc;
           print_endline "";
-        end else print_string "No localisation :(\n";
+        end ;
+          (* else print_string "No localisation :(\n"; *)
         begin
         match e with
-        | VariableNotFound varname -> eprintf "Variable not found : %s" varname;
         (* | AlreadyDeclared varname -> eprintf "Variable already declared : %s" varname; *)
         | DimensionMismatch -> eprintf "Missmatched dimension";
         | NoParent classname -> eprintf "%s doesnt have any parent" classname;
@@ -215,19 +215,14 @@ let () =
         | SubTypeError (a, b) -> eprintf "%s is not a subtype of %s" (Kawa.string_of_typ a) (Kawa.string_of_typ b);
         | PrimitiveTypeCast t -> eprintf "Cannot typecast as a primitivetype (%s)" (Kawa.string_of_typ t);
         | DifferentSignature(a,b) -> eprintf "%s has different signatures" a.method_name;
-
+        
+        | VariableNotFound(name, others) -> eprintf "Variable not found : %s" name; eprintf  "\n%s" (Tools.didyoumean name others);
+        | ClassNotFound(classname, others) -> eprintf "Class not found : %s" classname; eprintf  "\n%s" (Tools.didyoumean classname others);
+        | InterfaceNotFound (name, others) -> eprintf "Interface not found : %s" name; eprintf  "\n%s" (Tools.didyoumean name others);
+        | MethodNotFound (name, others) -> eprintf "Method not found : %s" name; eprintf  "\n%s" (Tools.didyoumean name others);
+        | AttributNotFoud (name, others) -> eprintf "Attribute not found : %s" name; eprintf  "\n%s" (Tools.didyoumean name others);
         end;
         eprintf "\n";
-        (* exit 1 *)
-    (* | Typechecker.TypeCheckerError (err,loc) -> 
-        match err with 
-        | Typechecker.TypeError s -> eprintf "\027[91mType error: \027[0m%s@.\n" s; report loc ;
-        | Typechecker.IndexOutOfBounds -> eprintf "\027[91mCompile Time error: \027[0m Index out of bounds@.\n" ; report loc ;
-        | Typechecker.DimensionMismatch -> eprintf "\027[91mType error: \027[0m Dimension Mismatch@.\n" ; report loc ;
-        | Typechecker.TypeCastError s -> eprintf"\027[91mTypeCast error: \027[0m%s@.\n" s; report loc ;
-        | Typechecker.NotFound s -> eprintf "\027[91mUnknown Reference: \027[0m%s@.\n" s; report loc ;
-        | Typechecker.CompileTimeError s -> eprintf "\027[91mCompileTimeError: \027[0m%s@.\n" s; report loc ; *)
-
         exit 1
     | Stack_env.EnvError e ->
       eprintf "\027[91mEnvironment error:\027[0m %s@." (Stack_env.string_of_env_error e);

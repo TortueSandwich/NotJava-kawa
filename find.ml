@@ -10,6 +10,7 @@ exception FError of finderr
 
 let fraise x = raise (FError x)
 
+(** @raise ClassNotFound *)
 let find_class_def p class_name =
   let classes = p.classes in
   match List.find_opt (fun cls -> cls.class_name = class_name) classes with

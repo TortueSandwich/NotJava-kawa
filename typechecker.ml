@@ -4,7 +4,7 @@ open Find
 
 type error =
   | DimensionMismatch
-  | VariableNotFound of string
+  | VariableNotFound of string * string list
   | NoParent of string (* 🙏 *)
   | SuperMain
   | UnAutorizeAccess of string * visibility
@@ -14,7 +14,11 @@ type error =
   | SubTypeError of typ * typ
   | PrimitiveTypeCast of typ
   | DifferentSignature of method_def * method_def
-  (* | AlreadyDeclared of string *)
+  | ClassNotFound of string * string list
+  | InterfaceNotFound of string * string list
+  | MethodNotFound of string * string list
+  | AttributNotFoud of string * string list
+(* | AlreadyDeclared of string *)
 
 exception TpError of error * loc option
 
@@ -37,7 +41,9 @@ let rec elem_type = function TArray t -> elem_type t | t -> t
 
 (*
   List.find (fun i -> i.interface_name = interface_name) interfaces
-  with Not_found -> raise (NotFound ("Interface not found: " ^ interface_name ^ (match closest_string interface_name (List.map (fun i -> i.interface_name) interfaces) with
+  with Not_found -> raise (NotFound (
+  "Interface not found: " ^ interface_name ^ (
+  match closest_string interface_name (List.map (fun i -> i.interface_name) interfaces) with
      | Some closest -> ", did you mean " ^ closest ^ " ?\n"
      | None -> ""))) *)
 
@@ -47,17 +53,29 @@ let objname_of_typ = function
 
 (** main attraction *)
 let typecheck_prog (p : program) : program =
-  let find_class_def = find_class_def p in
-  let find_parent_class_def = find_parent_class_def p in
-  let find_method_locally_def = find_method_locally_def p in
+  let find_class_def loc =
+    try find_class_def p
+    with Find.FError (ClassNotFound (n, other)) ->
+      localized_tpraise (ClassNotFound (n, other)) loc 
+  in
+  let find_parent_class_def loc =
+    try find_parent_class_def p
+    with Find.FError (ClassNotFound (n, other)) ->
+      localized_tpraise (ClassNotFound (n, other)) loc
+  in
+  let find_method_locally_def loc =
+    try find_method_locally_def p
+    with Find.FError (MethodNotFound (n, other)) ->
+      raise (TpError ((MethodNotFound (n, other)), loc))
+  in
   (* Errors conversion *)
   let env_get loc env name =
     try Env.find env name
     with Stack_env.EnvError (UndefinedVariable s) ->
-      localized_tpraise (VariableNotFound name) loc
+      localized_tpraise (VariableNotFound(name, Env.get_all_names env)) loc
   in
 
-  let declare_locally loc env x t = 
+  let declare_locally loc env x t =
     if Env.is_declared_locally env x then ()
       (* localized_tpraise (AlreadyDeclared x) loc *)
     else Env.define_locally env x t
@@ -70,6 +88,9 @@ let typecheck_prog (p : program) : program =
     let tpraise err = localized_tpraise err e.loc in
     let ( <:? ) a b = if not (a <: b) then UnexpectedType (a, b) |> tpraise in
     let env_get = env_get e.loc in
+    let find_class_def = find_class_def e.loc in
+    let find_parent_class_def = find_parent_class_def e.loc in
+    let find_method_locally_def = find_method_locally_def (Some e.loc) in
 
     let check_method_args defclass genrics param_types args =
       let arg_types =
@@ -97,7 +118,7 @@ let typecheck_prog (p : program) : program =
             typed_e.annot <:? TBool;
             derive_expr TBool resexpr
         | TypeCast newType -> (
-            if is_primitive newType then (PrimitiveTypeCast newType) |> tpraise;
+            if is_primitive newType then PrimitiveTypeCast newType |> tpraise;
             try
               typed_e.annot <:? newType;
               derive_expr newType typed_e.expr
@@ -204,7 +225,7 @@ let typecheck_prog (p : program) : program =
         let obj = check_expr obj stack_env in
         let { annot = objtpye; expr = eou } = obj in
         let cls_name = objname_of_typ objtpye in
-        let class_def = find_class_def cls_name in
+        let class_def = find_class_def loc cls_name in
         let genericsapplication =
           match objtpye with TClass (_, g) -> g | _ -> assert false
         in
@@ -220,7 +241,7 @@ let typecheck_prog (p : program) : program =
                    else UnAutorizeAccess (field_name, visible) |> tpraise);
             realtypeofgeneric class_def genericsapplication res
           with _ as e -> (
-            let parentdef = find_parent_class_def c in
+            let parentdef = find_parent_class_def loc c in
             match parentdef with
             | Some parentdef -> find_familly parentdef false
             | None -> raise e)
@@ -278,7 +299,7 @@ let typecheck_prog (p : program) : program =
         List.iter f varnames;
         derive_instr (Declare (varnames, t, None))
     | Declare (varnames, t, Some v) ->
-      let f x = declare_locally i.loc stack_env x t in
+        let f x = declare_locally i.loc stack_env x t in
         List.iter f varnames;
         let typedval = check_expr v stack_env in
         t <:? typedval.annot;
@@ -306,7 +327,7 @@ let typecheck_prog (p : program) : program =
       in
       let f meth =
         try
-          let tmp = find_method_locally_def class_def meth.method_name in
+          let tmp = find_method_locally_def None class_def meth.method_name in
           check_eq_signatures tmp meth
         with Find.FError (MethodNotFound (s, n)) ->
           NotImplemented (class_def, meth) |> tpraise

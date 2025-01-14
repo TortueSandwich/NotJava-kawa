@@ -72,5 +72,10 @@ let is_valid_array_string (s: string) : bool =
   in
   aux 0
 
+let didyoumean name possibilities=
+  match (closest_string name possibilities) with 
+  | None -> ""
+  | Some coseset -> "Did you mean " ^ coseset ^ "?"
+   
 
 
