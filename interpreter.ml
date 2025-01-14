@@ -1,6 +1,4 @@
 open Kawa
-
-(* open Typechecker *)
 open Find
 
 type value =
@@ -12,6 +10,7 @@ type value =
 
 and obj = { cls : string; fields : (string, value) Hashtbl.t }
 
+(* TODO enleverles erreurs check à la compil *)
 type error =
   | DimensionMismatch of expr
   | NotFound of string
@@ -104,10 +103,9 @@ let rec ( === ) v1 v2 =
 
 let ( =/= ) v1 v2 = not (v1 === v2)
 
-(* Main attraction *)
+(****** MAIN ATTRACTION ******)
 let exec_prog (p : program) : unit =
   let find_class_def = find_class_def p in
-
   let alloc class_name =
     let c = find_class_def class_name in
     let vartable =

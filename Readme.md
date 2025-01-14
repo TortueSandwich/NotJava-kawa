@@ -29,6 +29,8 @@ dune build && ./kawai.exe -s
 - Arthur SAILLANT (LDD3IM)
 - Rayan LALAOUI (LDD3IM)
 
+[lien du repo github](https://github.com/TortueSandwich/NotJava-kawa)
+
 ## Sommaire
 
 - [Rapport de Projet](#rapport-de-projet)
@@ -76,8 +78,8 @@ Nous avons ajouté un test pour chaque fonctionnalité implémentée, y compris 
 ### Fonctionnalités<a name="fonctionnalités"></a>
 
 - [x] Les fonctionnalités de base
-- [ ] Champs immuables
-- [ ] Visibilités
+- [x] Champs immuables
+- [x] Visibilités
 - [x] Déclarations en série
 - [x] Déclaration avec valeur initiale
 - [ ] Champs statiques
@@ -85,14 +87,14 @@ Nous avons ajouté un test pour chaque fonctionnalité implémentée, y compris 
 - [x] Transtypage (cast)
 - [x] Super
 - [x] Tableaux
-- [ ] Égalité structurelle (`===`)
+- [x] Égalité structurelle (`===`)
 - [ ] Classes et méthodes abstraites
 - [ ] Surcharge statique
 
 - [ ] Déclarations simplifiées (enlever var, method)
 - [x] "Missing semicolon"
 - [x] "Did you mean '...'?"
-- [ ] Le processus ne peut pas aboutir en raison d'un problème technique
+- [x] Le processus ne peut pas aboutir en raison d'un problème technique
 - [x] Syntaxe abstraite typée (`annot` et `expr_`)
 
 ---
@@ -103,13 +105,13 @@ Nous avons ajouté un test pour chaque fonctionnalité implémentée, y compris 
 - Portée & shadowing
 - Classes génériques
 - Interfaces (avec ou sans implémentation par défaut)
+- des messages d'erreurs plus explicite ([voir l'handleling des erreurs](kawa.ml#L170))
 
 ---
 
 ### Proposition d'amélioration<a name="proposition-damélioration"></a>
 
-- Implémenter l'ownership
-- Implementer les références
+- Implémenter les references et l'ownership
 - Permettre d'avoir des constantes génériques au sein d'une classe
 - "Sous-typage" des interfaces (passer une classe implémentant une interface en paramètre)
 
