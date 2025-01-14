@@ -35,6 +35,9 @@
         "super" ,   SUPER;
         (* "impl",     IMPL; *)
         "generic",   GENERIC;
+        "public",    PUBLIC;
+        "protected", PROTECTED;
+        "private",   PRIVATE;
       ] ;
     fun s ->
       try  Hashtbl.find h s
@@ -65,6 +68,8 @@
     | TIMES -> vert^"*"
     | DIV -> vert^"/"
     | EQ -> vert^"=="
+    | STRUCTEQ -> vert ^ "==="
+    | NEGSTRUCTEQ-> vert ^ "=/="
     | NEQ -> vert^"!="
     | EXCLAMATION -> vert^"!"
     | MOD -> vert^"%"
@@ -105,6 +110,10 @@
     | LBR -> jaune^"["
     | SUPER -> orange^"super"
 
+    | PUBLIC -> bleu^"public"
+    | PRIVATE -> bleu^"private"
+    | PROTECTED -> bleu^"protected"
+
     (* | _ -> "UNKNOWN"  *)
     in t ^"\027[0m"    
 
@@ -141,6 +150,8 @@ rule token = parse
   | "/"  {  DIV }
   | "%"  {  MOD }
   | "==" {  EQ }
+  | "===" { STRUCTEQ }
+  | "=/=" { NEGSTRUCTEQ }
   | "=" {  AFFECT }
   | "!=" {  NEQ }
 

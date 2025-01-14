@@ -39,6 +39,7 @@ let rec expr_to_dot with_id (e : expr) =
       let c = create_connection with_id m_id in
       (currnode :: m_nodes, c :: m_connections)
   | This -> ([ create_node with_id "this" ], [])
+  | SuperCall (s, el) -> ([ create_node with_id "super" ], [])
   | New (s, g) ->
       let currnode = create_node with_id "new" in
       let c_id = fresh_id () in
@@ -81,6 +82,7 @@ let rec expr_to_dot with_id (e : expr) =
           let t_con = create_connection with_id t_id in
           (currnode :: t_node :: argnodes, t_con :: argcon)
       | _ -> (currnode :: argnodes, argcon))
+  | NewArray(t, args) -> ([],[])
 
 (* | _ ->
       let node = create_node with_id "Non traité (expr)" in
@@ -117,6 +119,16 @@ and mem_to_dot withid (m : Kawa.mem_access) =
         [ create_connection withid e_id; create_connection withid f_id ]
       in
       (nodes @ n, connections @ c)
+  | Array_var (s, el) -> 
+    let currnode = create_node withid "Array_var" "" in
+    let argnodes, argcon =
+        create_node_and_connections withid el ~ordered:true
+    in
+    let id_var = fresh_id () in
+    let varnode = create_node id_var (string_of_mem s) "" in
+    let cons = create_connection withid id_var ~label:"array" in
+    (currnode ::varnode :: argnodes, cons :: argcon)
+  (* | _ -> let node = create_node withid "Non traité (memory)" "" in ([ node ], []) *)
 
 and inst_to_dot with_id instr =
   let create_node with_id lab = create_node with_id lab "" in

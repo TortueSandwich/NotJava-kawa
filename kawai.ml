@@ -55,7 +55,7 @@ let print_source file =
     done
   with End_of_file -> close_in in_channel
 
-(* recuperer fichiers si non-précisé *)
+(* recuperer fichiers via le menu si non-précisé en ligne de commande*)
 let files =
   match !input_files with
   | [] ->
@@ -141,6 +141,7 @@ let custom_printexc_to_string exn =
     in
     "\027[91m SyntaxError:\027[0m " ^ extracted_content
 
+(* Main attraction *)
 let () =
   let exit code =
     if !input_files = [] then
@@ -150,15 +151,7 @@ let () =
     exit code
   in
   let compile f =
-    let report (b, e) =
-      let l = b.pos_lnum in
-      let fc = b.pos_cnum - b.pos_bol + 1 in
-      let lc = e.pos_cnum - b.pos_bol + 1 in
-      eprintf "File \"%s\", line %d, characters %d-%d:\n" f l fc lc;
-      let line_content = get_line f l in
-      eprintf "%s\n" line_content;
-      eprintf "%s\n" (String.make (fc - 1) ' ' ^ String.make (lc - fc + 1) '^')
-    in
+    let report loc = print_string (Tools.report_bug loc f)  in
     let c = open_in f in
     let lb = Lexing.from_channel c in
     Lexing.set_filename lb f;
@@ -187,15 +180,65 @@ let () =
         eprintf "\027[91msyntax error:\027[0m Unexpected token: %s\n"
           (Kawalexer.token_to_string (Kawalexer.token lb));
         exit 1
-    | Interpreter.Error s ->
-        eprintf "\027[91minterpreter error: \027[0m%s@." s;
+    | Interpreter.IError(e, loc) ->
+        eprintf "\027[91minterpreter error: \027[0m.\n";
+        (match e with 
+        | DimensionMismatch (expr) -> eprintf "dimension missmatch";
+        | NotFound (s) -> eprintf "%s was not found" s;
+        | NotIndexable value -> eprintf "%s is not indexable" (Interpreter.ValueType.string_of_value value);
+        | InvalidIndex (expr , value) -> eprintf "%s is not a valid index" (Kawa.string_of_expr expr)
+        | Division_by_zero expr -> eprintf "Divisionby zero";
+        | Anomaly -> eprintf "anormal 👽";
+        | UnexpectedType (typ1 , typ2) -> eprintf "expected %s got %s" (Kawa.string_of_typ typ1) (Kawa.string_of_typ typ2);
+        );
+        (* s; *)
         exit 1
-    | Typechecker.TypeError s -> 
-        eprintf "\027[91mType error: \027[0m%s@." s;
+      | Typechecker.TpError (e, loc) -> 
+        eprintf "\027[91mTypechecker error: \027[0m@.";
+        if Option.is_some loc then begin
+          print_string "got some localisation :)\n";
+          let loc = Option.get loc in 
+          report loc;
+          print_endline "";
+        end else print_string "No localisation :(\n";
+        begin
+        match e with
+        | VariableNotFound varname -> eprintf "Variable not found : %s" varname;
+        (* | AlreadyDeclared varname -> eprintf "Variable already declared : %s" varname; *)
+        | DimensionMismatch -> eprintf "Missmatched dimension";
+        | NoParent classname -> eprintf "%s doesnt have any parent" classname;
+        | SuperMain -> eprintf "Why would you call superin main ? Do you know what you are doing ?";
+        | UnAutorizeAccess (var, prio) -> eprintf "%s cant be accessed here because it is defined as %s" var (Kawa.string_of_visibility prio);
+        | NotImplemented (classdef, methdef) -> eprintf "You have to implement %s in the class %s" classdef.class_name methdef.method_name;
+        | NotIndexable t -> eprintf "cannot index type %s" (Kawa.string_of_typ t);
+        | UnexpectedType (exp, got) -> eprintf "expected %s but got %s" (Kawa.string_of_typ exp) (Kawa.string_of_typ got);
+        | SubTypeError (a, b) -> eprintf "%s is not a subtype of %s" (Kawa.string_of_typ a) (Kawa.string_of_typ b);
+        | PrimitiveTypeCast t -> eprintf "Cannot typecast as a primitivetype (%s)" (Kawa.string_of_typ t);
+        | DifferentSignature(a,b) -> eprintf "%s has different signatures" a.method_name;
+
+        end;
+        eprintf "\n";
+        (* exit 1 *)
+    (* | Typechecker.TypeCheckerError (err,loc) -> 
+        match err with 
+        | Typechecker.TypeError s -> eprintf "\027[91mType error: \027[0m%s@.\n" s; report loc ;
+        | Typechecker.IndexOutOfBounds -> eprintf "\027[91mCompile Time error: \027[0m Index out of bounds@.\n" ; report loc ;
+        | Typechecker.DimensionMismatch -> eprintf "\027[91mType error: \027[0m Dimension Mismatch@.\n" ; report loc ;
+        | Typechecker.TypeCastError s -> eprintf"\027[91mTypeCast error: \027[0m%s@.\n" s; report loc ;
+        | Typechecker.NotFound s -> eprintf "\027[91mUnknown Reference: \027[0m%s@.\n" s; report loc ;
+        | Typechecker.CompileTimeError s -> eprintf "\027[91mCompileTimeError: \027[0m%s@.\n" s; report loc ; *)
+
         exit 1
     | Stack_env.EnvError e ->
       eprintf "\027[91mEnvironment error:\027[0m %s@." (Stack_env.string_of_env_error e);
       exit 1
+    | Find.FError e ->(
+      match e with 
+      | ClassNotFound(classname, others) -> eprintf "Class not found : %s" classname;
+      | InterfaceNotFound (name, others) -> eprintf "Interface not found : %s" name;
+      | MethodNotFound (name, others) -> eprintf "Method not found : %s" name;
+      | AttributNotFoud (name, _) ->eprintf "Attribute not found : %s" name;
+    )
     | e ->
         eprintf "%s\n@." (custom_printexc_to_string e); 
         report (lexeme_start_p lb, lexeme_end_p lb);

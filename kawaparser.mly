@@ -17,17 +17,19 @@
 %token PRINT VAR IF ELSE WHILE CLASS INTERFACE ATTRIBUTE METHOD NEW THIS RETURN EXTENDS IMPLEMENTS DEFAULT SUPER
 %token AFFECT LPAR RPAR SEMI LBR RBR
 %token PLUS MINUS TIMES DIV MOD 
-%token LT LEQ GT GEQ AND OR EQ NEQ
+%token LT LEQ GT GEQ AND OR EQ NEQ STRUCTEQ NEGSTRUCTEQ
 %token POINT COMA 
 %token EXCLAMATION
 %token TINT TBOOL TVOID
 %token INSTANCEOF, AS
 
 %token GENERIC
+%token PUBLIC PRIVATE PROTECTED
 
 %left OR
 %left AND
 %nonassoc EQ NEQ
+%nonassoc STRUCTEQ NEGSTRUCTEQ
 %left LT LEQ GT GEQ
 %left PLUS MINUS
 %left TIMES DIV MOD
@@ -162,9 +164,10 @@ interface_def:
 
 
 attr_decl:
-| ATTRIBUTE t=kawatype s=IDENT semi_handled {
-  (s,t)
-  }
+| ATTRIBUTE t=kawatype s=IDENT semi_handled {(s,t, Public)}
+| PUBLIC ATTRIBUTE t=kawatype s=IDENT semi_handled {(s,t, Public)}
+| PRIVATE ATTRIBUTE t=kawatype s=IDENT semi_handled {(s,t, Private)}
+| PROTECTED ATTRIBUTE t=kawatype s=IDENT semi_handled {(s,t, Protected)}
 ;
 
 
@@ -202,10 +205,10 @@ def_sans_default:
 
 
 
-%inline mem:
+mem:
 | s=IDENT {Var(s) }
 | e=expression POINT s=IDENT {Field(e,s)}
-| s=IDENT e=nonempty_list(dimension) {Array_var(s,e)}
+| s=mem e=nonempty_list(dimension) {Array_var(s,e)} // todo expression
 ;
 
 %inline base_types:
@@ -249,4 +252,7 @@ bracket_pair:
 | NEQ {Neq}
 | AND {And}
 | OR {Or}
+| STRUCTEQ {StructEq}
+| NEGSTRUCTEQ {NegStructEq}
+
 ;

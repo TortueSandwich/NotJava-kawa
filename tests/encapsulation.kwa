@@ -1,0 +1,60 @@
+var paire p;
+var triple t;
+
+class paire {
+  private attribute int x;
+  protected attribute int y;
+  public attribute int z;
+
+  method void constructor(int x, int y, int z) {
+    this.x = x;
+    this.y = y;
+    this.z = z;
+  }
+
+  method int getX() {
+    return this.x;
+  }
+
+  method void setX(int value) {
+    this.x = value;
+  }
+
+  method int somme() {
+    return this.getX() + this.y + this.z;
+  }
+}
+
+class triple extends paire {
+  attribute int w;
+
+  method void constructor(int x, int y, int z, int w) {
+    super.constructor(x, y, z); 
+    this.w = w;
+  }
+
+  method int somme() {
+    return this.getX() + this.y + this.z + this.w;
+  }
+
+  method int produit() {
+    return this.getX() * this.y * this.z * this.w;
+  }
+}
+
+main {
+  p = new paire(1, 2, 3); 
+  t = new triple(4, 5, 6, 7);
+
+  
+  print(p.somme()); // 1 + 2 + 3 = 6
+  print(t.somme()); // 4 + 5 + 6 + 7 = 22
+  print(t.produit()); // 4 * 5 * 6 * 7 = 840
+
+  
+  // p.x = 10; // Erreur : x est privé (ok)
+  t.y = 20; // Erreur : y est protégé et inaccessible dans main
+  t.z = 30; // OK : z est public
+  print(t.somme()); // (4 + 5 + 30 + 7) = 46
+  // affiche 6, 22, 840, 46
+}

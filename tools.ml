@@ -42,20 +42,6 @@ let closest_string target lst =
   | [] -> None
   | hd :: tl -> find_closest hd (levenshtein_distance target hd) tl
 
-let get_string_from_file filename (start_pos, end_pos) =
-  let ic = open_in filename in
-  let buffer = Buffer.create (end_pos.pos_cnum - start_pos.pos_cnum) in
-  try
-    seek_in ic start_pos.pos_cnum;
-    for _ = start_pos.pos_cnum to end_pos.pos_cnum - 1 do
-      Buffer.add_char buffer (input_char ic)
-    done;
-    close_in ic;
-    Buffer.contents buffer
-  with e ->
-    close_in_noerr ic;
-    raise e
-
 let get_line filename line_num =
   let ic = open_in filename in
   let rec loop n =
@@ -66,23 +52,15 @@ let get_line filename line_num =
   close_in ic;
   result
 
-let report_bug (pos: Lexing.position * Lexing.position) (f: string) =
+(** string décrivant l'erreur à la position [pos] dans le fichier [f]. *)
+let report_bug (pos: Lexing.position * Lexing.position) (file: string) =
   let b, e = pos in
   let l = b.pos_lnum in
   let fc = b.pos_cnum - b.pos_bol + 1 in
   let lc = e.pos_cnum - b.pos_bol + 1 in
-  let line_content = get_line f l in
+  let line_content = get_line file l in
   let error_indicator = String.make (fc - 1) ' ' ^ String.make (lc - fc + 1) '^' in
-  sprintf "\nFile \"%s\", line %d, characters %d-%d:\n%s\n%s" f l fc lc line_content error_indicator
-
-let count_bracket_pairs (s: string) : int =
-  let len = String.length s in
-  let rec aux i count =
-    if i >= len - 1 then count
-    else if s.[i] = '[' && s.[i + 1] = ']' then aux (i + 2) (count + 1)
-    else aux (i + 1) count
-  in
-  aux 0 0
+  sprintf "\nFile \"%s\", line %d, characters %d-%d:\n%s\n%s" file l fc lc line_content error_indicator
 
 let is_valid_array_string (s: string) : bool =
   let len = String.length s in
