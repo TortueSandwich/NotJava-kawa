@@ -1,22 +1,11 @@
-build and execute :
 ```sh
+# build and execute
 dune build && dune exec ./kawai.exe -- <args>
-```
-or
-```sh
 dune build && ./kawai.exe <args>
-```
-
-run using :
-```sh
+# run
 ./kawai.exe <file1> [--help | --show-source | -s]
-```
-
-exemples d'utilisation :
-```sh
+# exemples  :
 ./kawai.exe ./tests/var.kwa
-```
-```sh
 dune build && ./kawai.exe -s
 ```
 
@@ -74,22 +63,23 @@ Nous avons ajouté un test pour chaque fonctionnalité implémentée, y compris 
 ### Fonctionnalités<a name="fonctionnalités"></a>
 
 - [x] Les fonctionnalités de base
-- [x] Champs immuables
-- [x] Visibilités
-- [x] Déclarations en série
-- [x] Déclaration avec valeur initiale
+- [x] Champs immuables ([final.kwa](./tests/final.kwa))
+- [x] Visibilités ([encapsulation.kwa](./tests/encapsulation.kwa))
+- [x] Déclarations en série ([multivar.kwa](./tests/multivar.kwa))
+- [x] Déclaration avec valeur initiale ([multivarinit.kwa](./tests/multivarinit.kwa))
 - [ ] Champs statiques
-- [x] Test de type (`instance of`)
-- [x] Transtypage (cast)
-- [x] Super
-- [x] Tableaux
-- [x] Égalité structurelle (`===`)
-- [ ] Classes et méthodes abstraites
+- [x] Test de type (`instance of`) ([instanceof.kwa](./tests/instanceof.kwa))
+- [x] Transtypage (cast) ([rayan.kwa](./tests/rayan.kwa))
+- [x] Super ([super.kwa](./tests/super.kwa))
+- [x] Tableaux ([tab.kwa](./tests/tab.kwa) et [objtab.kwa
+](./tests/objtab.kwa))
+- [x] Égalité structurelle (`===` & `=/=`) ([structeq.kwa](./tests/structeq.kwa))
+- [ ] Classes et méthodes abstraites (on a des interfaces à default)
 - [ ] Surcharge statique
-
+---
 - [ ] Déclarations simplifiées (enlever var, method)
-- [x] "Missing semicolon"
-- [x] "Did you mean '...'?"
+- [x] "Missing semicolon" ([missingsemi.kwa](./tests/missingsemi.kwa))
+- [x] "Did you mean '...'?" ([didyou.kwa](./tests/didyou.kwa) je recommande ce test)
 - [x] Le processus ne peut pas aboutir en raison d'un problème technique
 - [x] Syntaxe abstraite typée (`annot` et `expr_`)
 
@@ -97,11 +87,11 @@ Nous avons ajouté un test pour chaque fonctionnalité implémentée, y compris 
 
 ### Fonctionnalités supplémentaires<a name="fonctionnalités-supplémentaires"></a>
 
-- déclaration et initialisation de variable en tant qu'instruction
-- Portée & shadowing
-- Classes génériques
-- Interfaces (avec ou sans implémentation par défaut)
-- des messages d'erreurs plus explicite ([voir l'handleling des erreurs](kawai.ml#L170))
+- déclaration et initialisation de variable en tant qu'instruction ([multivarinit.kwa](./tests/multivarinit.kwa))
+- Portée & shadowing ([shadowing.kwa](./tests/shadowing.kwa))
+- Classes génériques ([generictype.kwa](./tests/generictype.kwa))
+- Interfaces (avec ou sans implémentation par défaut) ([interface_simple.kwa](./tests/interface_simple.kwa) & [interface_default.kwa](./tests/interface_default.kwa))
+- des messages d'erreurs plus explicite ([voir l'handleling des erreurs](kawai.ml#L189))
 
 ---
 
@@ -115,6 +105,18 @@ Nous avons ajouté un test pour chaque fonctionnalité implémentée, y compris 
 
 ### Détails d'implémentation
 
+
+#### Messages d'erreur
+
+Nous avons fait le choix de maintenir un code propre, flexible et facilement extensible. Toutefois, cela s'est avéré complexe, surtout à mesure que le code grossissait, ce qui a parfois ralenti notre productivité. Nous avons pris soin de gérer les erreurs de manière propre et structurée, c'est pourquoi le [gestionnaire d'erreurs](kawai.ml#L189) occupe une place importante dans le fichier [kawai.ml](kawai.ml#L189). 
+
+Les messages d'erreur sont personnalisés, en particulier avec l'indication précise de la position où l'erreur se produit, ce qui facilite grandement le débogage. Dans l'[interpréteur](./interpreter.ml#L14), le nombre d'erreurs est limité, car la majorité des erreurs sont détectées en amont par le [vérificateur de types](./typechecker.ml#L5).
+
+<!-- TODO montrer des exemple à la fin ? -->
+
+---
+
+#### stackenv
 Nous avons implémenté la gestion des portées et du *shadowing* à l'aide d'une structure de données personnalisée appelée `stack_env` ([source](./stack_env.ml)). Il s'agit d'une pile de tables de hachage, mais avec un "fond" commun (le dernier élément) partagé entre chaque instance de `stack_env`. Ce fond représente la portée globale du programme, c'est-à-dire les données accessibles à l'échelle mondiale. Chaque élément de la pile représente ensuite une portée imbriquée.
 
 Pour résoudre une requête, il suffit de parcourir la pile de haut en bas, en cherchant la première occurrence de la donnée dans chaque table de hachage. À la fin d'une portée, le premier élément est retiré de la pile, permettant ainsi de revenir à l'environnement de portée précédent.
@@ -125,10 +127,10 @@ Le fond doit être commun à chaque instance de `stack_env` afin que les donnée
 
 ---
 
-
 ### Commentaires personnels<a name="commentaires-personnels"></a>
 
 #### Arthur SAILLANT
+<!-- TODO -->
 
 #### Rayan LALAOUI
 
