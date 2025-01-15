@@ -130,7 +130,15 @@ Le fond doit être commun à chaque instance de `stack_env` afin que les donnée
 ### Commentaires personnels<a name="commentaires-personnels"></a>
 
 #### Arthur SAILLANT
-<!-- TODO -->
+
+J'ai beaucoup apprécié travailler sur ce projet, créer un langage est une expérience à vivre au moins une fois dans sa vie. Cependant, je regrette que le parser (Menhir) soit assez simple. J'y ai consacré un certain temps, notamment sur la syntaxe du typecast. Je suis conscient qu'on pourrait probablement y parvenir en ajustant les priorités des règles, mais un parser LR(1) n'est pas suffisant pour gérer, par exemple, les génériques (d'où l'introduction d'un mot-clé "generic" qui n'est pas très élégant). On aurait pu utiliser la technique du "lexer hack", mais cela aurait impliqué de mélanger le lexer et le parser, ce que je n'avais pas particulièrement envie de faire 🚶.
+
+J'aurais vraiment aimé implémenter l'[ownership](https://doc.rust-lang.org/beta/book/ch04-01-what-is-ownership.html), cela aurait été très intéressant d'ajouter cette couche de vérification. À mon avis, cela ne semble pas trop compliqué à mettre en œuvre avec notre architecture : transmettre l'ownership signifie simplement déplacer la variable dans un autre environnement de stack (en la supprimant de l'environnement d'où elle provient). Ce n'est rien de plus ! Ce serait encore plus amusant si l'on avait implémenté les références pour gérer les lifetimes (la notion la plus complexe de Rust :p).
+
+J'aurais aussi aimé explorer le type-level programming. J'avais l'idée de coder un algorithme de tri basé sur les types, mais pour cela, il aurait fallu des interfaces génériques et des types associés, ce qui est un peu complexe.
+
+Nous avons finalement préféré suivre les extensions recommandées, ce qui a permis de rendre le projet plus abouti, et je pense que c'était une bonne décision !
+
 
 #### Rayan LALAOUI
 
