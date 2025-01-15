@@ -10,16 +10,11 @@ type value =
 
 and obj = { cls : string; fields : (string, value) Hashtbl.t }
 
-(* TODO enleverles erreurs check à la compil *)
+(* peu d'erreur car beaucoup typechecké *)
 type error =
   | InvalidIndex of int * int * string option
   | Division_by_zero of expr
   | TypeCastError of typ * typ
-
-(* | DimensionMismatch of expr *)
-(* | NotFound of string *)
-(* | NotIndexable of value *)
-(* | Anomaly *)
 
 exception IError of error * loc option
 exception Return of value
@@ -57,6 +52,23 @@ let rec init_value = function
   | TVoid -> Null
   | TArray t -> VArray (Array.make 0 (init_value t))
 
+let rec ( === ) v1 v2 =
+  match (v1, v2) with
+  | VInt a, VInt b -> a = b
+  | VBool a, VBool b -> a = b
+  | Null, Null -> true
+  | VObj o1, VObj o2 ->
+      assert (o1.cls = o2.cls);
+      List.for_all2 ( === )
+        (hashtable_values o1.fields)
+        (hashtable_values o2.fields)
+  | VArray a1, VArray a2 -> Array.for_all2 ( === ) a1 a2
+  | _, _ -> failwith "should be typecheck"
+
+let ( =/= ) v1 v2 = not (v1 === v2)
+
+(* TODO mettre le fonction en rapport avec array à part *)
+
 let rec create_array dims t =
   match dims with
   | [] -> failwith "Dimensions list cannot be empty"
@@ -66,8 +78,7 @@ let rec create_array dims t =
         match t with
         | TInt -> VInt 0
         | TBool -> VBool false
-        | TVoid -> Null
-        | TClass _ -> Null
+        | TVoid | TClass _ -> Null
         | TArray t ->
             let core_type = Typechecker.elem_type t in
             init_value core_type
@@ -83,7 +94,6 @@ let length_varray arr =
     match arr with Array_var (a, b) -> arr | _ -> failwith "not an array"
   in
   aux arr 0
-(* | VArray a ->  *)
 
 let length_varray arr =
   match arr with VArray a -> Array.length a | _ -> failwith "not an array"
@@ -114,22 +124,7 @@ let set_elem_from_indices value indexes name new_value =
 
 let array_of_value v = match v with VArray a -> a | _ -> assert false
 
-let rec ( === ) v1 v2 =
-  match (v1, v2) with
-  | VInt a, VInt b -> a = b
-  | VBool a, VBool b -> a = b
-  | Null, Null -> true
-  | VObj o1, VObj o2 ->
-      assert (o1.cls = o2.cls);
-      List.for_all2 ( === )
-        (hashtable_values o1.fields)
-        (hashtable_values o2.fields)
-  | VArray a1, VArray a2 -> Array.for_all2 ( === ) a1 a2
-  | _, _ -> failwith "should be typecheck"
-
-let ( =/= ) v1 v2 = not (v1 === v2)
-
-(****** MAIN ATTRACTION ******)
+(**************************** MAIN ATTRACTION ****************************)
 let exec_prog (p : program) : unit =
   let find_class_def = find_class_def p in
   let alloc class_name =
@@ -140,6 +135,7 @@ let exec_prog (p : program) : unit =
     in
     { cls = class_name; fields = vartable }
   in
+  (* pas besoin de convertir les erreur car deja typecheck *)
   let env_get loc env name = Env.find env name in
 
   let rec eval_call fname this args =

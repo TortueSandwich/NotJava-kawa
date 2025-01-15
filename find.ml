@@ -1,5 +1,7 @@
 open Kawa
 
+(* Ce fichier contient des fonction utile, notament dans la recherce de composante dans un programme *)
+
 type finderr =
   | ClassNotFound of string * string list
   | InterfaceNotFound of string * string list
@@ -75,10 +77,6 @@ let rec find_method_locally_def p defclass meth_name =
       MethodNotFound (meth_name, methsnames) |> fraise
   | Some m -> m
 
-(* error ("Method not found: " ^ meth_name ^ (match closest_string meth_name (List.map (fun m -> m.method_name) allmeth) with
-       | Some closest -> ", did you mean " ^ closest ^ " ?\n"
-       | None -> "")) *)
-
 (** prog objective curr a <: b <=> a extends b
 
     si a <: b alors a peut etre utiliser à la place de b *)
@@ -102,18 +100,6 @@ let rec check_subtype p soustypede trucquiextends =
         Option.is_some verite
   | TArray t1, TArray t2 -> check_subtype p t1 t2
   | t1, t2 -> is_primitive_equal t1 t2
-
-(* let find_method_def_locally (classdef : class_def) meth_name =
-  let methods = classdef.methods in
-  match List.find_opt (fun m -> m.method_name = meth_name) methods with
-  | None ->
-      let meths_names = List.map (fun x -> x.method_name) methods in
-      MethodNotFound (meth_name, meths_names) |> fraise
-  | Some m -> m *)
-
-(* raise (NotFound ("Method not found: " ^ meth_name ^ (match closest_string meth_name (List.map (fun m -> m.method_name) methods) with
-       | Some closest -> ", did you mean " ^ closest ^ " ?\n"
-       | None -> ""))) *)
 
 let create_generic_table (generic_ident : string list) (generic_type : typ list)
     =

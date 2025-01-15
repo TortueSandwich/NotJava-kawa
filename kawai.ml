@@ -1,13 +1,4 @@
 (* Point d'entrée / Main*)
-(* modifications :
-   std.Arg pour les paramètres de l'.exe
-   possibilitée de selectioner .kwa si non donné à l'.exe
-   possibilitée d'afficher le code source du .kwa
-   possibilitée d'interpreter plusieur fichier en une fois
-   afficher commande pour compilier fichier choisi si non-precisé à l'.exe
-   couleurs :)
-*)
-
 open Format
 open Lexing
 open Arg
@@ -141,7 +132,7 @@ let custom_printexc_to_string exn =
   in
   "\027[91m SyntaxError:\027[0m " ^ extracted_content
 
-(* Main attraction *)
+(***************** MAIN ATTRACTION *****************)
 let () =
   let exit code =
     if !input_files = [] then

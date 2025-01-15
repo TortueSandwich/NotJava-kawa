@@ -10,22 +10,19 @@
 %}
 
 %token MAIN BEGIN END EOF
-
 %token <int> INT
 %token <bool> BOOL
 %token <string> IDENT
 %token PRINT VAR IF ELSE WHILE CLASS INTERFACE ATTRIBUTE METHOD NEW THIS RETURN EXTENDS IMPLEMENTS DEFAULT SUPER
 %token AFFECT LPAR RPAR SEMI LBR RBR
-%token PLUS MINUS TIMES DIV MOD 
+%token PLUS MINUS TIMES DIV MOD
 %token LT LEQ GT GEQ AND OR EQ NEQ STRUCTEQ NEGSTRUCTEQ
-%token POINT COMA 
-%token EXCLAMATION
+%token POINT COMA EXCLAMATION
 %token TINT TBOOL TVOID
-%token INSTANCEOF, AS
-%token FINAL
-
-%token GENERIC
+%token INSTANCEOF AS
+%token FINAL GENERIC
 %token PUBLIC PRIVATE PROTECTED
+
 
 %left OR
 %left AND
@@ -51,17 +48,17 @@ program:
   interfaces=list(interface_def)
   classes=list(class_def)
   MAIN BEGIN 
-  i=list(instruction)
+  main_instrs=list(instruction)
   end_handled EOF
   {
-    (* traite le casou les variables sont initialisé à la déclaration *)
+    (* traite le cas où les variables sont initialisé à la déclaration *)
     let (globals, globals_init) = 
       List.fold_left 
         (fun (acc_globals, acc_instrs) (defs, instrs) -> 
           (acc_globals @ defs, acc_instrs @ instrs)
         ) ([], []) globals_var
     in
-    { globals; interfaces ;classes; main = globals_init @ i }
+    { globals; interfaces ;classes; main = globals_init @ main_instrs }
   }
 ;
 
@@ -72,23 +69,25 @@ globals_var_decl:
   | None -> []
   | Some value -> List.map (fun var -> {instr = Set(Var(var), value); loc = $loc}) vars in
   (defs, instrs)
-  
 }
 ;
 
 instruction:
-| PRINT LPAR e=expression rpar_handled semi_handled { {instr = Print(e); loc = $loc }}
-| m=mem AFFECT e=expression semi_handled {{instr = Set(m, e); loc = $loc }}
-| IF LPAR e=expression rpar_handled BEGIN iif=list(instruction) end_handled ELSE BEGIN ielse=list(instruction) end_handled {{instr = If(e, iif, ielse); loc = $loc }}
-| WHILE LPAR e=expression rpar_handled BEGIN i=list(instruction) end_handled {{instr = While(e,i); loc = $loc }}
-| RETURN e=expression semi_handled {{instr = Return(e); loc = $loc }}
-| e=expression semi_handled {{instr = Expr(e); loc = $loc }}
-| BEGIN l=list(instruction) end_handled {{instr = Scope(l); loc = $loc }}
-| x=var_decl { let (a,b,c) = x in {instr = Declare(a,b,c); loc = $loc  }}
+| instrs=raw_instruction { {instr=instrs;loc=$loc}}
+
+raw_instruction:
+| PRINT LPAR e=expression rpar_handled semi_handled {  Print(e) }
+| m=mem AFFECT e=expression semi_handled { Set(m, e) }
+| IF LPAR e=expression rpar_handled BEGIN iif=list(instruction) end_handled ELSE BEGIN ielse=list(instruction) end_handled { If(e, iif, ielse) }
+| WHILE LPAR e=expression rpar_handled BEGIN i=list(instruction) end_handled { While(e,i) }
+| RETURN e=expression semi_handled { Return(e) }
+| e=expression semi_handled { Expr(e) }
+| BEGIN l=list(instruction) end_handled { Scope(l) }
+| x=var_decl { x }
 ;
 
 var_decl:
-| VAR t=kawatype vars=separated_nonempty_list(COMA, IDENT) value=affectation? semi_handled { (vars, t, value) }
+| VAR t=kawatype vars=separated_nonempty_list(COMA, IDENT) value=affectation? semi_handled { Declare(vars, t, value) }
 ;
 
 
@@ -107,24 +106,26 @@ rpar_handled :
 | RPAR { () }
 
 
-
 expression:
-| n=INT { {annot = TInt ; expr = Int(n) ; loc = $loc }}
-| b=BOOL { {annot = TBool ; expr = Bool(b) ; loc = $loc }}
-| t=THIS {{annot  =TVoid ; expr=This ; loc = $loc}}
-| m=mem {{annot = TVoid ; expr = Get(m); loc = $loc}}
-| o=unop e=expression %prec UNARY_OP {{annot = TVoid ; expr = Unop(o, e) ; loc = $loc}}
-| e=expression o=binop f=expression { {annot = TVoid ; expr = Binop(o,e,f) ; loc = $loc} }
-| LPAR e=expression rpar_handled { e }
-| NEW i=IDENT {{annot = TClass(i, []) ; expr =  New(i, []) ; loc = $loc}}
-| NEW GENERIC i=IDENT gt=generictype {{annot = TClass(i, gt) ; expr =  New(i, gt) ; loc = $loc}}
-| NEW i=IDENT LPAR l=separated_list(COMA,expression) rpar_handled {{annot = TClass(i, []) ; expr = NewCstr(i, [], l) ; loc = $loc}}
-| NEW GENERIC i=IDENT gt=generictype LPAR l=separated_list(COMA,expression) rpar_handled {{annot = TClass(i, gt) ; expr = NewCstr(i, gt, l) ; loc = $loc}}
-| e=expression POINT s=IDENT LPAR l=separated_list(COMA,expression) rpar_handled {{annot = TVoid ; expr = MethCall(e,s,l) ; loc = $loc}}
-| SUPER POINT s=IDENT LPAR l=separated_list(COMA,expression) rpar_handled {{annot = TVoid ; expr = SuperCall(s,l) ; loc = $loc}}
-| e=expression AS t=kawatype {{annot = TVoid ; expr = Unop(TypeCast(t), e) ; loc = $loc}}
-| e=expression INSTANCEOF t=kawatype {  {annot = TBool ; expr = Unop(InstanceOf(t) , e) ; loc = $loc}  }
-| NEW t=base_types d=nonempty_list(dimension) { {annot = tarray_of_dim (List.length d) t ; expr = NewArray(t, d) ; loc = $loc} }
+| expr=raw_expression { let (t, e) = expr in {annot=t;expr=e;loc= $loc}}
+
+raw_expression:
+| n=INT { (TInt, Int(n) ) }
+| b=BOOL { (TBool, Bool(b) ) }
+| t=THIS {(TVoid,This)}
+| m=mem { (TVoid, Get(m)) }
+| o=unop e=expression %prec UNARY_OP {(TVoid, Unop(o, e) )}
+| e=expression o=binop f=expression { (TVoid, Binop(o,e,f) )} 
+| LPAR e=raw_expression rpar_handled { e }
+| NEW i=IDENT {(TClass(i, []),  New(i, []) )}
+| NEW GENERIC i=IDENT gt=generictype {(TClass(i, gt),  New(i, gt) )}
+| NEW i=IDENT LPAR l=separated_list(COMA,expression) rpar_handled {(TClass(i, []), NewCstr(i, [], l) )}
+| NEW GENERIC i=IDENT gt=generictype LPAR l=separated_list(COMA,expression) rpar_handled {(TClass(i, gt), NewCstr(i, gt, l) )}
+| e=expression POINT s=IDENT LPAR l=separated_list(COMA,expression) rpar_handled {(TVoid, MethCall(e,s,l) )}
+| SUPER POINT s=IDENT LPAR l=separated_list(COMA,expression) rpar_handled {(TVoid, SuperCall(s,l) )}
+| e=expression AS t=kawatype {(TVoid, Unop(TypeCast(t), e) )}
+| e=expression INSTANCEOF t=kawatype {  (TBool, Unop(InstanceOf(t) , e) )}  
+| NEW t=base_types d=nonempty_list(dimension) { (tarray_of_dim (List.length d) t, NewArray(t, d) )} 
 ;
 
 dimension:
@@ -155,7 +156,7 @@ extends :
 
 implements :
 | IMPLEMENTS interfaces=separated_nonempty_list(COMA, IDENT) {interfaces}
-| { []}
+| { [] }
 ;
 
 interface_def: 
@@ -206,9 +207,6 @@ def_sans_default:
 {
   { method_name; code = [] ; params; locals=[]; return; default = false}}
 ;
-
-
-
 
 mem:
 | m=memsimple {m}

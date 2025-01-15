@@ -9,7 +9,7 @@ dune build && ./kawai.exe <args>
 
 run using :
 ```sh
-./kawai.exe <file1> [--show-source | -s]
+./kawai.exe <file1> [--help | --show-source | -s]
 ```
 
 exemples d'utilisation :
@@ -19,11 +19,7 @@ exemples d'utilisation :
 ```sh
 dune build && ./kawai.exe -s
 ```
-```sh
-./kawai.exe ./tests/min.kwa -s
-```
 
-<!--TODO ajouter images et commentaires-->
 
 **Auteurs:**
 - Arthur SAILLANT (LDD3IM)
@@ -71,7 +67,7 @@ Enfin, l'ajout de messages d'erreur détaillés a constitué un casse-tête. Men
 
 ### Tests<a name="tests"></a>
 
-Nous avons ajouté un test pour chaque fonctionnalité implémentée, y compris des tests conçus pour échouer. Ils ont permis de vérifier le bon fonctionnement de la syntaxe et du type checker en simulant des erreurs intentionnelles. Cela nous a permis de valider que le compilateur réagissait correctement face à des entrées incorrectes et de s'assurer que les messages d'erreur étaient appropriés et clairs.
+Nous avons ajouté un test pour chaque fonctionnalité implémentée, y compris des tests conçus pour échouer. Ils ont permis de vérifier le bon fonctionnement de la syntaxe et du type checker en simulant des erreurs intentionnelles. Ces tests ont validé la capacité du compilateur à réagir correctement aux erreurs et de s'assurer que les messages d'erreur étaient appropriés et clairs.
 
 ---
 
@@ -105,7 +101,7 @@ Nous avons ajouté un test pour chaque fonctionnalité implémentée, y compris 
 - Portée & shadowing
 - Classes génériques
 - Interfaces (avec ou sans implémentation par défaut)
-- des messages d'erreurs plus explicite ([voir l'handleling des erreurs](kawa.ml#L170))
+- des messages d'erreurs plus explicite ([voir l'handleling des erreurs](kawai.ml#L170))
 
 ---
 
@@ -116,6 +112,19 @@ Nous avons ajouté un test pour chaque fonctionnalité implémentée, y compris 
 - "Sous-typage" des interfaces (passer une classe implémentant une interface en paramètre)
 
 ---
+
+### Détails d'implémentation
+
+Nous avons implémenté la gestion des portées et du *shadowing* à l'aide d'une structure de données personnalisée appelée `stack_env` ([source](./stack_env.ml)). Il s'agit d'une pile de tables de hachage, mais avec un "fond" commun (le dernier élément) partagé entre chaque instance de `stack_env`. Ce fond représente la portée globale du programme, c'est-à-dire les données accessibles à l'échelle mondiale. Chaque élément de la pile représente ensuite une portée imbriquée.
+
+Pour résoudre une requête, il suffit de parcourir la pile de haut en bas, en cherchant la première occurrence de la donnée dans chaque table de hachage. À la fin d'une portée, le premier élément est retiré de la pile, permettant ainsi de revenir à l'environnement de portée précédent.
+
+Le fond doit être commun à chaque instance de `stack_env` afin que les données globales restent accessibles, même dans des contextes totalement différents du programme principal, comme au sein des classes et méthodes.
+
+![illustration stack env](./assets/stackenv.png)
+
+---
+
 
 ### Commentaires personnels<a name="commentaires-personnels"></a>
 
