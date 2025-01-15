@@ -1,0 +1,26 @@
+var point p;
+
+class point {
+  final attribute int x;
+  attribute int y;
+
+  method void constructor(int a, int b) {
+    this.x = a;
+    this.y = b;
+  }
+
+  method int somme() {
+    return this.x + this.y;
+  }
+}
+
+main {
+  p = new point(2, 1);
+  p.y = 3 + p.y; // 
+  print(p.x);
+
+  p.x = 3 + p.x; // bug psq p.x final
+
+  print(48 + p.somme());
+  // Affiche 54
+}

@@ -1,16 +1,6 @@
 (* Point d'entrée / Main*)
-(* modifications :
-   std.Arg pour les paramètres de l'.exe
-   possibilitée de selectioner .kwa si non donné à l'.exe
-   possibilitée d'afficher le code source du .kwa
-   possibilitée d'interpreter plusieur fichier en une fois
-   afficher commande pour compilier fichier choisi si non-precisé à l'.exe
-   couleurs :)
-*)
-
 open Format
 open Lexing
-
 open Arg
 
 (* lis les parametres donnée à l'exe*)
@@ -114,34 +104,35 @@ let lex_and_print_tokens c =
   try
     loop 1 0;
     print_endline ""
-  with
-  | End_of_file -> ()
+  with End_of_file -> ()
 
 let extract_parentheses_content s =
-    try
-      let start_idx = String.index s '(' in
-      let end_idx = String.index s ')' in
-      if start_idx < end_idx then
-        let content = String.sub s (start_idx + 1) (end_idx - start_idx - 1) in
-        let content = 
-          if String.length content >= 2 && content.[0] = '"' && content.[String.length content - 1] = '"' then
-            String.sub content 1 (String.length content - 2)
-          else content
-        in
-        content
-      else
-        raise (Invalid_argument "Invalid string format")
-    with Not_found -> raise (Invalid_argument "Parentheses not found")
-  
-let custom_printexc_to_string exn =
-    let original_output = Printexc.to_string exn in
-    let extracted_content = 
-      try extract_parentheses_content original_output 
-      with Invalid_argument _ -> original_output
-    in
-    "\027[91m SyntaxError:\027[0m " ^ extracted_content
+  try
+    let start_idx = String.index s '(' in
+    let end_idx = String.index s ')' in
+    if start_idx < end_idx then
+      let content = String.sub s (start_idx + 1) (end_idx - start_idx - 1) in
+      let content =
+        if
+          String.length content >= 2
+          && content.[0] = '"'
+          && content.[String.length content - 1] = '"'
+        then String.sub content 1 (String.length content - 2)
+        else content
+      in
+      content
+    else raise (Invalid_argument "Invalid string format")
+  with Not_found -> raise (Invalid_argument "Parentheses not found")
 
-(* Main attraction *)
+let custom_printexc_to_string exn =
+  let original_output = Printexc.to_string exn in
+  let extracted_content =
+    try extract_parentheses_content original_output
+    with Invalid_argument _ -> original_output
+  in
+  "\027[91m SyntaxError:\027[0m " ^ extracted_content
+
+(***************** MAIN ATTRACTION *****************)
 let () =
   let exit code =
     if !input_files = [] then
@@ -151,7 +142,7 @@ let () =
     exit code
   in
   let compile f =
-    let report loc = print_string (Tools.report_bug loc f)  in
+    let report loc = print_string (Tools.report_bug loc f) in
     let c = open_in f in
     let lb = Lexing.from_channel c in
     Lexing.set_filename lb f;
@@ -180,67 +171,91 @@ let () =
         eprintf "\027[91msyntax error:\027[0m Unexpected token: %s\n"
           (Kawalexer.token_to_string (Kawalexer.token lb));
         exit 1
-    | Interpreter.IError(e, loc) ->
-        eprintf "\027[91minterpreter error: \027[0m.\n";
-        (match e with 
-        | DimensionMismatch (expr) -> eprintf "dimension missmatch";
-        | NotFound (s) -> eprintf "%s was not found" s;
-        | NotIndexable value -> eprintf "%s is not indexable" (Interpreter.ValueType.string_of_value value);
-        | InvalidIndex (expr , value) -> eprintf "%s is not a valid index" (Kawa.string_of_expr expr)
-        | Division_by_zero expr -> eprintf "Divisionby zero";
-        | Anomaly -> eprintf "anormal 👽";
-        | UnexpectedType (typ1 , typ2) -> eprintf "expected %s got %s" (Kawa.string_of_typ typ1) (Kawa.string_of_typ typ2);
-        );
-        (* s; *)
-        exit 1
-      | Typechecker.TpError (e, loc) -> 
-        eprintf "\027[91mTypechecker error: \027[0m@.";
-        if Option.is_some loc then begin
-          print_string "got some localisation :)\n";
-          let loc = Option.get loc in 
-          report loc;
-          print_endline "";
-        end else print_string "No localisation :(\n";
-        begin
-        match e with
-        | VariableNotFound varname -> eprintf "Variable not found : %s" varname;
-        (* | AlreadyDeclared varname -> eprintf "Variable already declared : %s" varname; *)
-        | DimensionMismatch -> eprintf "Missmatched dimension";
-        | NoParent classname -> eprintf "%s doesnt have any parent" classname;
-        | SuperMain -> eprintf "Why would you call superin main ? Do you know what you are doing ?";
-        | UnAutorizeAccess (var, prio) -> eprintf "%s cant be accessed here because it is defined as %s" var (Kawa.string_of_visibility prio);
-        | NotImplemented (classdef, methdef) -> eprintf "You have to implement %s in the class %s" classdef.class_name methdef.method_name;
-        | NotIndexable t -> eprintf "cannot index type %s" (Kawa.string_of_typ t);
-        | UnexpectedType (exp, got) -> eprintf "expected %s but got %s" (Kawa.string_of_typ exp) (Kawa.string_of_typ got);
-        | SubTypeError (a, b) -> eprintf "%s is not a subtype of %s" (Kawa.string_of_typ a) (Kawa.string_of_typ b);
-        | PrimitiveTypeCast t -> eprintf "Cannot typecast as a primitivetype (%s)" (Kawa.string_of_typ t);
-        | DifferentSignature(a,b) -> eprintf "%s has different signatures" a.method_name;
-
-        end;
+    | Interpreter.IError (e, loc) ->
+        eprintf "\027[91minterpreter error\027[0m.\n";
+        (match e with
+        | InvalidIndex (idx, length, nameopt) ->
+            eprintf "index %s is out of bound %s %s" (string_of_int idx)
+              (match nameopt with None -> "" | Some s -> "of " ^ s)
+              (if idx >= 0 then
+                 "but the lenth of array is " ^ string_of_int length
+               else "")
+        | Division_by_zero expr -> eprintf "Division by zero"
+        | TypeCastError (t1, t2) ->
+            eprintf "cannot cast a %s into a %s" (Kawa.string_of_typ t1)
+              (Kawa.string_of_typ t2));
         eprintf "\n";
-        (* exit 1 *)
-    (* | Typechecker.TypeCheckerError (err,loc) -> 
-        match err with 
-        | Typechecker.TypeError s -> eprintf "\027[91mType error: \027[0m%s@.\n" s; report loc ;
-        | Typechecker.IndexOutOfBounds -> eprintf "\027[91mCompile Time error: \027[0m Index out of bounds@.\n" ; report loc ;
-        | Typechecker.DimensionMismatch -> eprintf "\027[91mType error: \027[0m Dimension Mismatch@.\n" ; report loc ;
-        | Typechecker.TypeCastError s -> eprintf"\027[91mTypeCast error: \027[0m%s@.\n" s; report loc ;
-        | Typechecker.NotFound s -> eprintf "\027[91mUnknown Reference: \027[0m%s@.\n" s; report loc ;
-        | Typechecker.CompileTimeError s -> eprintf "\027[91mCompileTimeError: \027[0m%s@.\n" s; report loc ; *)
-
+        exit 1
+    | Typechecker.TpError (e, loc) ->
+        eprintf "\027[91mTypechecker error: \027[0m@.";
+        if Option.is_some loc then (
+          let loc = Option.get loc in
+          report loc;
+          print_endline "");
+        let printdidyoumean name others =
+          eprintf "\n%s" (Tools.didyoumean name others)
+        in
+        (match e with
+        (* | AlreadyDeclared varname -> eprintf "Variable already declared : %s" varname; *)
+        | DimensionMismatch -> eprintf "Missmatched dimension"
+        | NoParent classname -> eprintf "%s doesnt have any parent" classname
+        | FinalMutation (field, clsname) ->
+            eprintf "Cannot mutate %s.%s as it is declared final" clsname field
+        | SuperMain ->
+            eprintf
+              "Why would you call superin main ? Do you know what you are \
+               doing ?"
+        | UnAutorizeAccess (var, prio) ->
+            eprintf "%s cant be accessed here because it is defined as %s" var
+              (Kawa.string_of_visibility prio)
+        | NotImplemented (classdef, methdef) ->
+            eprintf "You have to implement %s in the class %s"
+              classdef.class_name methdef.method_name
+        | NotIndexable t ->
+            eprintf "cannot index type %s" (Kawa.string_of_typ t)
+        | UnexpectedType (exp, got) ->
+            eprintf "expected %s but got %s" (Kawa.string_of_typ exp)
+              (Kawa.string_of_typ got)
+        | SubTypeError (a, b) ->
+            eprintf "%s is not a subtype of %s" (Kawa.string_of_typ a)
+              (Kawa.string_of_typ b)
+        | PrimitiveTypeCast t ->
+            eprintf "Cannot typecast as a primitivetype (%s)"
+              (Kawa.string_of_typ t)
+        | DifferentSignature (a, b) ->
+            eprintf "%s has different signatures" a.method_name
+        | VariableNotFound (name, others) ->
+            eprintf "Variable not found : %s" name;
+            printdidyoumean name others
+        | ClassNotFound (classname, others) ->
+            eprintf "Class not found : %s" classname;
+            printdidyoumean classname others
+        | InterfaceNotFound (name, others) ->
+            eprintf "Interface not found : %s" name;
+            printdidyoumean name others
+        | MethodNotFound (name, others) ->
+            eprintf "Method not found : %s" name;
+            printdidyoumean name others
+        | AttributNotFoud (name, others) ->
+            eprintf "Attribute not found : %s" name;
+            printdidyoumean name others);
+        eprintf "\n";
         exit 1
     | Stack_env.EnvError e ->
-      eprintf "\027[91mEnvironment error:\027[0m %s@." (Stack_env.string_of_env_error e);
-      exit 1
-    | Find.FError e ->(
-      match e with 
-      | ClassNotFound(classname, others) -> eprintf "Class not found : %s" classname;
-      | InterfaceNotFound (name, others) -> eprintf "Interface not found : %s" name;
-      | MethodNotFound (name, others) -> eprintf "Method not found : %s" name;
-      | AttributNotFoud (name, _) ->eprintf "Attribute not found : %s" name;
-    )
+        eprintf "\027[91mEnvironment error:\027[0m %s@."
+          (Stack_env.string_of_env_error e);
+        exit 1
+    | Find.FError e -> (
+        eprintf "\027[91mFind error (should not happen):\027[0m.";
+        match e with
+        | ClassNotFound (classname, others) ->
+            eprintf "Class not found : %s" classname
+        | InterfaceNotFound (name, others) ->
+            eprintf "Interface not found : %s" name
+        | MethodNotFound (name, others) -> eprintf "Method not found : %s" name
+        | AttributNotFoud (name, _) -> eprintf "Attribute not found : %s" name)
     | e ->
-        eprintf "%s\n@." (custom_printexc_to_string e); 
+        eprintf "%s\n@." (custom_printexc_to_string e);
         report (lexeme_start_p lb, lexeme_end_p lb);
         (* lex_and_print_tokens (open_in f); *)
         exit 2

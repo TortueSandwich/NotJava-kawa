@@ -1,0 +1,5 @@
+var int vingt_sur_vingt = 20;
+
+main {
+    print(dix_neuf_sur_vingt);
+}

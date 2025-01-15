@@ -1,6 +1,4 @@
 open Kawa
-
-(* open Typechecker *)
 open Find
 
 type value =
@@ -12,20 +10,17 @@ type value =
 
 and obj = { cls : string; fields : (string, value) Hashtbl.t }
 
+(* peu d'erreur car beaucoup typechecké *)
 type error =
-  | DimensionMismatch of expr
-  | NotFound of string
-  | NotIndexable of value
-  | InvalidIndex of expr * value
+  | InvalidIndex of int * int * string option
   | Division_by_zero of expr
-  | Anomaly
-  | UnexpectedType of typ * typ
+  | TypeCastError of typ * typ
 
 exception IError of error * loc option
 exception Return of value
 
 let iraise e = raise (IError (e, None))
-let localized_iraise e loc = raise (IError (e, (Some loc)))
+let localized_iraise e loc = raise (IError (e, Some loc))
 
 module ValueType = struct
   type t = value
@@ -57,38 +52,6 @@ let rec init_value = function
   | TVoid -> Null
   | TArray t -> VArray (Array.make 0 (init_value t))
 
-let rec create_array dims t =
-  match dims with
-  | [] -> failwith "Dimensions list cannot be empty"
-  | [ dim ] ->
-      let creator f = VArray (Array.init dim f) in
-      let initvalue =
-        match t with
-        | TInt -> VInt 0
-        | TBool -> VBool false
-        | TVoid -> Null
-        | TClass _ -> Null
-        | TArray t ->
-            let core_type = Typechecker.elem_type t in
-            init_value core_type
-      in
-      creator (fun _ -> initvalue)
-  | dim :: rest -> VArray (Array.init dim (fun _ -> create_array rest t))
-
-let rec get_elem_from_indices e value indexes =
-  match indexes with
-  | [] -> Error (DimensionMismatch e)
-  | hd :: tl -> (
-      let elem = value.(hd) in
-      match elem with
-      | VArray a -> get_elem_from_indices e a tl
-      | _ when tl = [] -> Ok elem
-      | _ -> Error (DimensionMismatch e))
-
-(** RAISE NotIndexable si type nonindexable*)
-let array_of_value v =
-  match v with VArray a -> a | _ -> raise (IError ((NotIndexable v), None))
-
 let rec ( === ) v1 v2 =
   match (v1, v2) with
   | VInt a, VInt b -> a = b
@@ -100,27 +63,80 @@ let rec ( === ) v1 v2 =
         (hashtable_values o1.fields)
         (hashtable_values o2.fields)
   | VArray a1, VArray a2 -> Array.for_all2 ( === ) a1 a2
-  | _, _ -> Anomaly |> iraise (* should have been typechecked*)
+  | _, _ -> failwith "should be typecheck"
 
 let ( =/= ) v1 v2 = not (v1 === v2)
 
-(* Main attraction *)
+(* TODO mettre le fonction en rapport avec array à part *)
+
+let rec create_array dims t =
+  match dims with
+  | [] -> failwith "Dimensions list cannot be empty"
+  | [ dim ] ->
+      let creator f = VArray (Array.init dim f) in
+      let initvalue =
+        match t with
+        | TInt -> VInt 0
+        | TBool -> VBool false
+        | TVoid | TClass _ -> Null
+        | TArray t ->
+            let core_type = Typechecker.elem_type t in
+            init_value core_type
+      in
+      creator (fun _ -> initvalue)
+  | dim :: rest -> VArray (Array.init dim (fun _ -> create_array rest t))
+
+let length_varray arr =
+  let rec aux a count =
+    match a with Array_var (othera, b) -> aux othera (count + 1) | _ -> count
+  in
+  let arr =
+    match arr with Array_var (a, b) -> arr | _ -> failwith "not an array"
+  in
+  aux arr 0
+
+let length_varray arr =
+  match arr with VArray a -> Array.length a | _ -> failwith "not an array"
+
+let get_elem_from_indices value indexes name =
+  List.fold_left
+    (fun current idx ->
+      match current with
+      | VArray arr -> (
+          try arr.(idx)
+          with _ -> InvalidIndex (idx, Array.length arr, Some name) |> iraise)
+      | _ -> failwith "too long dimension")
+    value indexes
+
+let set_elem_from_indices value indexes name new_value =
+  let rec set_rec current idx_list =
+    match (idx_list, current) with
+    | [ last_idx ], VArray arr -> (
+        try arr.(last_idx) <- new_value
+        with _ ->
+          InvalidIndex (last_idx, Array.length arr, Some name) |> iraise)
+    | idx :: rest, VArray arr -> (
+        try set_rec arr.(idx) rest
+        with _ -> InvalidIndex (idx, Array.length arr, Some name) |> iraise)
+    | _, _ -> failwith "too long dimension"
+  in
+  set_rec value indexes
+
+let array_of_value v = match v with VArray a -> a | _ -> assert false
+
+(**************************** MAIN ATTRACTION ****************************)
 let exec_prog (p : program) : unit =
   let find_class_def = find_class_def p in
-
   let alloc class_name =
     let c = find_class_def class_name in
     let vartable =
-      List.map (fun (name, _, _) -> (name, Null)) c.attributes
+      List.map (fun (name, _, _, _) -> (name, Null)) c.attributes
       |> List.to_seq |> Hashtbl.of_seq
     in
     { cls = class_name; fields = vartable }
   in
-  let env_get loc env name =
-    try Env.find env name
-    with Stack_env.EnvError (UndefinedVariable s) ->
-      localized_iraise (NotFound name) loc
-  in
+  (* pas besoin de convertir les erreur car deja typecheck *)
+  let env_get loc env name = Env.find env name in
 
   let rec eval_call fname this args =
     let defclass = List.find (fun cls -> cls.class_name = this.cls) p.classes in
@@ -145,7 +161,7 @@ let exec_prog (p : program) : unit =
       match eval e env_stack with VObj o -> o | _ -> assert false
     and evalunop unop (e : expr) env_stack =
       let ( <: ) a b = Find.check_subtype p b a in
-      let ( <:? ) a b = if not (a <: b) then UnexpectedType (a, b) |> iraise in
+      let ( <:? ) a b = if not (a <: b) then TypeCastError (a, b) |> iraise in
       match unop with
       | Opp -> VInt (-evali e env_stack)
       | Not -> VBool (not (evalb e env_stack))
@@ -196,27 +212,21 @@ let exec_prog (p : program) : unit =
       | Get (Field (obj, field_name)) ->
           let o = evalo obj env_stack in
           Hashtbl.find o.fields field_name
-      | Get (Array_var (name, index)) -> (
+      | Get (Array_var (name, index)) ->
           (*todo haha :') (c'est moche)*)
           let memtovar = { annot = e.annot; expr = Get name; loc = e.loc } in
           let v = eval memtovar env_stack in
           let int_idxs = List.map (fun x -> evali x env_stack) index in
-          let arr = array_of_value v in
-          match get_elem_from_indices e arr int_idxs with
-          | Ok e -> e
-          | Error e -> iraise e)
+          get_elem_from_indices v int_idxs (string_of_mem name)
       | This -> env_get env_stack "this"
       | New (class_name, g) -> VObj (alloc class_name)
       | NewCstr (class_name, gene, args) ->
           let instance = alloc class_name in
-          let n =
+          let _ =
             eval_call "constructor" instance
               (List.map (fun x -> eval x env_stack) args)
           in
-          if n <> Null then
-            (* already checked by compiler *)
-            iraise Anomaly (* A constructor must not return anything*)
-          else VObj instance
+          VObj instance
       | MethCall (obj, meth_name, args) ->
           let evaled_args = List.map (fun x -> eval x env_stack) args in
           eval_call meth_name (evalo obj env_stack) evaled_args
@@ -235,8 +245,8 @@ let exec_prog (p : program) : unit =
           let idx_of_value x =
             match x with
             | VInt n when n > 0 -> n
-            | VInt n -> InvalidIndex (e, x) |> iraise (* doit etre > 0*)
-            | _ -> InvalidIndex (e, x) |> iraise (* doit etre un int *)
+            | VInt n -> InvalidIndex (n, -1, None) |> iraise (* doit etre > 0*)
+            | _ -> failwith "doit etre un int (typechecké)"
           in
           create_array (List.map idx_of_value idxs) t
       (* | _ -> failwith "case not implemented in eval" *)
@@ -259,34 +269,19 @@ let exec_prog (p : program) : unit =
               let o = evalo obj env_stack in
               Hashtbl.replace o.fields field_name (eval e env_stack)
           | Array_var (name, i) ->
-              (* let v = Env.find env_stack name in *)
+              (* toujours moche *)
               let v =
                 eval { annot = e.annot; expr = Get name; loc = e.loc } env_stack
               in
-              (*todo v2 hahahaha :')*)
               let evaled_index = List.map (fun x -> evali x env_stack) i in
-              let arr = array_of_value v in
-              (* todo pouvoir set des array ? *)
-              let rec aux a indexes =
-                match indexes with
-                | [] -> DimensionMismatch e |> iraise
-                | hd :: [] -> (
-                    match a.(hd) with
-                    | VArray a ->
-                        DimensionMismatch e |> iraise (*pas assez d'indices*)
-                    | _ -> a.(hd) <- eval e env_stack)
-                | hd :: tl -> (
-                    match a.(hd) with
-                    | VArray a -> aux a tl
-                    | _ -> DimensionMismatch e |> iraise)
-              in
-              aux arr evaled_index)
+              set_elem_from_indices v evaled_index (string_of_mem name)
+                (eval e env_stack))
       | Return e -> raise (Return (eval e env_stack))
       | Expr e -> ignore (eval e env_stack)
       | Scope s ->
           (* exec seq crée deja une nouvelle portée *)
           exec_seq s env_stack
-          (* la portée est dropée touteseule*)
+          (* la portée est dropée toute seule*)
       | Declare (s, _, None) ->
           let f x =
             let declared_locally = Env.is_declared_locally env_stack x in

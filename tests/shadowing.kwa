@@ -1,3 +1,6 @@
+var int x = 10;
+var exemple e = new exemple(20);
+
 class exemple {
     attribute int y;
     method void constructor(int y) {
@@ -6,38 +9,25 @@ class exemple {
 }
 
 main {
-    // 1. Déclaration initiale
-    var int x = 10;
-    var exemple e = new exemple(20);
-
-    print(x);  // Devrait afficher 10
-    print(e.y);  // Devrait afficher 20
-
+    print(x);
+    print(e.y);
     {
-        // 2. Shadowing dans un bloc
         var int x = 50;
-        print(x);  // Devrait afficher 50
-        print(e.y);  // Devrait afficher 20 (pas shadowé)
-
+        print(x);
+        print(e.y);
         {
-            // 3. Shadowing imbriqué
             var exemple e = new exemple(100);
-            print(x);  // Devrait afficher 50 (du bloc extérieur)
-            print(e.y);  // Devrait afficher 100 (shadowing local)
+            print(x);
+            print(e.y);
         }
-
-        print(x);  // Devrait afficher 50 (shadowing local persiste)
-        print(e.y);  // Devrait afficher 20 (pas affecté par le bloc imbriqué)
+        print(x);
+        print(e.y);
     }
-
-    // 4. Retour à la portée globale
-    print(x);  // Devrait afficher 10
-    print(e.y);  // Devrait afficher 20
-
-    // 5. Shadowing global
+    print(x);
+    print(e.y);
     var int x = 42;
-    print(x);  // Devrait afficher 42
-    print(e.y);  // Devrait afficher 20
+    print(x);
+    print(e.y);
 
     // affiche 10, 20, 50, 20, 50, 100, 50, 20, 10, 20, 42, 20
 }

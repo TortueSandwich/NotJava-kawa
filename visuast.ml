@@ -49,7 +49,10 @@ let rec expr_to_dot with_id (e : expr) =
   | NewCstr (s, gene, l) ->
       let currnode = create_node with_id "newCstr" in
       let c_id = fresh_id () in
-      let cls_node = create_node c_id (s^ List.fold_left (fun acc x -> acc ^ string_of_typ x) "" gene) in
+      let cls_node =
+        create_node c_id
+          (s ^ List.fold_left (fun acc x -> acc ^ string_of_typ x) "" gene)
+      in
       let con = create_connection with_id c_id in
       let argnodes, argcon =
         create_node_and_connections with_id l ~ordered:true
@@ -82,7 +85,7 @@ let rec expr_to_dot with_id (e : expr) =
           let t_con = create_connection with_id t_id in
           (currnode :: t_node :: argnodes, t_con :: argcon)
       | _ -> (currnode :: argnodes, argcon))
-  | NewArray(t, args) -> ([],[])
+  | NewArray (t, args) -> ([], [])
 
 (* | _ ->
       let node = create_node with_id "Non traité (expr)" in
@@ -119,16 +122,16 @@ and mem_to_dot withid (m : Kawa.mem_access) =
         [ create_connection withid e_id; create_connection withid f_id ]
       in
       (nodes @ n, connections @ c)
-  | Array_var (s, el) -> 
-    let currnode = create_node withid "Array_var" "" in
-    let argnodes, argcon =
+  | Array_var (s, el) ->
+      let currnode = create_node withid "Array_var" "" in
+      let argnodes, argcon =
         create_node_and_connections withid el ~ordered:true
-    in
-    let id_var = fresh_id () in
-    let varnode = create_node id_var (string_of_mem s) "" in
-    let cons = create_connection withid id_var ~label:"array" in
-    (currnode ::varnode :: argnodes, cons :: argcon)
-  (* | _ -> let node = create_node withid "Non traité (memory)" "" in ([ node ], []) *)
+      in
+      let id_var = fresh_id () in
+      let varnode = create_node id_var (string_of_mem s) "" in
+      let cons = create_connection withid id_var ~label:"array" in
+      (currnode :: varnode :: argnodes, cons :: argcon)
+(* | _ -> let node = create_node withid "Non traité (memory)" "" in ([ node ], []) *)
 
 and inst_to_dot with_id instr =
   let create_node with_id lab = create_node with_id lab "" in
@@ -189,22 +192,21 @@ and inst_to_dot with_id instr =
       let e_id = fresh_id () in
       let enode, e_con = typed_expr_to_dot e_id e in
       ([ currnode ], e_con)
-  | Expr e -> 
-    let currnode = create_node with_id "Expr as instr" in
-    let e_id = fresh_id () in
-    let connec = create_connection with_id e_id ~label:"expr" in
-    let (e_node, e_connec)= expr_to_dot e_id e in
-    (currnode :: e_node, connec:: e_connec)
+  | Expr e ->
+      let currnode = create_node with_id "Expr as instr" in
+      let e_id = fresh_id () in
+      let connec = create_connection with_id e_id ~label:"expr" in
+      let e_node, e_connec = expr_to_dot e_id e in
+      (currnode :: e_node, connec :: e_connec)
+  | Scope instrs ->
+      let currnode = create_node with_id "Scope" in
+      let new_id = fresh_id () in
+      let s_nodes, s_connections = seq_to_dot instrs new_id in
+      let conec = create_connection with_id new_id ~label:"instrs" in
+      (currnode :: s_nodes, conec :: s_connections)
+  | Declare (vars, t, value) -> ([], [])
 
-  | Scope instrs -> 
-    let currnode = create_node with_id "Scope" in
-    let new_id = fresh_id () in
-    let s_nodes, s_connections = seq_to_dot instrs new_id in
-    let conec = create_connection with_id new_id ~label:"instrs" in
-    ( (currnode :: s_nodes), conec :: s_connections )
-  | Declare (vars, t, value) -> ( [], [])
-
-  (* | _ ->
+(* | _ ->
       let node = create_node with_id "Non traité (instr)" in
       ([ node ], []) *)
 

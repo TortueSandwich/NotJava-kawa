@@ -38,6 +38,7 @@
         "public",    PUBLIC;
         "protected", PROTECTED;
         "private",   PRIVATE;
+        "final",     FINAL;
       ] ;
     fun s ->
       try  Hashtbl.find h s
@@ -113,6 +114,8 @@
     | PUBLIC -> bleu^"public"
     | PRIVATE -> bleu^"private"
     | PROTECTED -> bleu^"protected"
+
+    | FINAL -> bleu^"final"
 
     (* | _ -> "UNKNOWN"  *)
     in t ^"\027[0m"    

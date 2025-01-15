@@ -5,9 +5,11 @@
 
 type typ = TVoid | TInt | TBool | TClass of string * typ list | TArray of typ
 
-type unop = Opp | Not | TypeCast of typ | InstanceOf of typ
-(* Opérations binaires *)
+let is_primitive = function TClass _ -> false | _ -> true
 
+type unop = Opp | Not | TypeCast of typ | InstanceOf of typ
+
+(* Opérations binaires *)
 and binop =
   | Add
   | Sub
@@ -56,9 +58,7 @@ and mem_access =
   | Var of string (* Variable *)
   | Field of expr (* objet *) * string (* nom d'un attribut *)
   | Array_var of
-      mem_access
-      (* Variable de type array *)
-      (* TODO mem -> expr (ca fait des shift reduce :( ))*)
+      mem_access (* Variable de type array *)
       * expr list (* indices par ex tab[1][2][3] -> (..., [1;2;3]) *)
 
 (* Instructions *)
@@ -114,7 +114,7 @@ type method_def = {
 type class_def = {
   class_name : string;
   generics : string list; (* types generique *)
-  attributes : (string * typ * visibility) list;
+  attributes : (string * typ * visibility * bool) list; (* true if mutable*)
   methods : method_def list;
   parent : string option;
   implemented_interfaces : string list;
@@ -135,6 +135,18 @@ type program = {
   globals : (string * typ) list;
   main : seq;
 }
+
+(* CONVERSIONS EN STRING*)
+
+let type_of_unop = function
+  | Opp -> TInt
+  | Not -> TBool
+  | TypeCast newType -> newType
+  | InstanceOf _ -> TBool
+
+let type_of_binop = function
+  | Add | Sub | Mul | Div | Rem -> TInt
+  | Lt | Le | Gt | Ge | Eq | Neq | And | Or | StructEq | NegStructEq -> TBool
 
 let rec typ_of_string = function
   | "int" -> TInt
@@ -247,37 +259,6 @@ let string_of_instr = function
       ^ ", " ^ string_of_typ t ^ valstring
 
 let string_of_visibility = function
-| Public -> "public"
-| Private -> "private"
-| Protected -> "protected"
-
-(* pas fou *)
-let expr_from a expr = { annot = expr.annot; expr = a; loc = expr.loc }
-
-let type_of_unop = function
-  | Opp -> TInt
-  | Not -> TBool
-  | TypeCast newType -> newType
-  | InstanceOf _ -> TBool
-
-let type_of_binop = function
-  | Add | Sub | Mul | Div | Rem -> TInt
-  | Lt | Le | Gt | Ge | Eq | Neq | And | Or | StructEq | NegStructEq -> TBool
-
-let find_class_def p class_name =
-  List.find_opt (fun cls -> cls.class_name = class_name) p.classes
-
-let rec get_familly p classdef =
-  match classdef.parent with
-  | None -> []
-  | Some pname -> (
-      match find_class_def p pname with
-      | None -> failwith "todo"
-      | Some pardef -> pardef :: get_familly p pardef)
-
-let find_interface_def p interface_name = 
-  List.find_opt (fun i -> i.interface_name = interface_name) p.interfaces
-
-let is_primitive = function
-| TClass _ -> false
-| _ -> true
+  | Public -> "public"
+  | Private -> "private"
+  | Protected -> "protected"
