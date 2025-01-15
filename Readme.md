@@ -161,3 +161,4 @@ Quelques messages d'erreurs du Typechecker
 ![](./assets/msg_final.png)
 ![](./assets/msg_missingsemi.png)
 ![](./assets/noparent.png)
+![](./assets/msg_didyou.png)
