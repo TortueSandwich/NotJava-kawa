@@ -141,6 +141,9 @@ Nous avons finalement préféré suivre les extensions recommandées, ce qui a p
 
 
 #### Rayan LALAOUI
+Le projet a été pour moi l'occasion de mieux cerner les questions que se poseraient les concepteurs de langages et les raisons qui motiveraient leurs choix, et a clairement été l'un des plus formateurs de mon cursus. Comme l'a souligné mon partenaire, Menhir, bien que très pratique pour apprendre les ficelles de l'analyse de code, a été assez frustrant à utiliser par moments. L'API monolithique utilisée pour le projet nous empêche de rattraper plus d'erreurs de la forme KawaParser._error_, par exemple.La base de code existant étant assez maigre, chaque utilisation d'un outil proposé par Menhir à souvent nécéssiter pas mal de "trial and error" avant de les faire fonctionner.
+
+Seul "regret" pour ma part est de ne pas avoir ajouté la possibilité de compiler le langage, par peur de la charge de travail que cela aurait ajouté en parallèle de celle déjà requise pour l'interpréteur.
 
 
 
