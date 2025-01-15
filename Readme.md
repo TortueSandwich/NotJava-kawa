@@ -144,3 +144,20 @@ Nous avons finalement préféré suivre les extensions recommandées, ce qui a p
 
 
 
+
+### Bonus
+
+Voici des visualisation d'ast généré avec [visuast.ml](./visuast.ml)
+
+arith.kwa, multivar.kwa et shadowing.kwa
+
+![](./assets/ast_arith.png)
+![](./assets/ast_multivar.png)
+![](./assets/ast_shedowing.png)
+
+Quelques messages d'erreurs du Typechecker
+
+![](./assets/msg_compilerr.png)
+![](./assets/msg_final.png)
+![](./assets/msg_missingsemi.png)
+![](./assets/noparent.png)

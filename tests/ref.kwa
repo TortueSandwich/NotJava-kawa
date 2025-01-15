@@ -1,0 +1,10 @@
+var int x;
+var &'a int y;
+var &'b int z;
+main {
+    x = 10; // Set(x, 10)
+    y = &x; // Set(y, get(borrow(Var(x))))
+    z = &x; // Set(z, Ref(Var(x)))
+    *z = 20; // Set(Deref(Borrow(x)), 20)
+    print(*y); // print(Deref(Var(y))
+}

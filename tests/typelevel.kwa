@@ -1,0 +1,16 @@
+interface nat {}
+interface compare<rhs> {}
+
+class zero implements nat, compare<> {}
+class succ<t : nat> implements nat {}
+
+class eq {}
+class lt {}
+class qt {}
+
+
+
+
+main {
+    print(1);
+}
