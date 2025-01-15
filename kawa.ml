@@ -136,7 +136,6 @@ type program = {
   main : seq;
 }
 
-
 (* CONVERSIONS EN STRING*)
 
 let type_of_unop = function
@@ -263,4 +262,3 @@ let string_of_visibility = function
   | Public -> "public"
   | Private -> "private"
   | Protected -> "protected"
-

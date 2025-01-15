@@ -181,21 +181,19 @@ let () =
           (Kawalexer.token_to_string (Kawalexer.token lb));
         exit 1
     | Interpreter.IError (e, loc) ->
-        eprintf "\027[91minterpreter error: \027[0m.\n";
+        eprintf "\027[91minterpreter error\027[0m.\n";
         (match e with
-        | DimensionMismatch expr -> eprintf "dimension missmatch"
-        | NotFound s -> eprintf "%s was not found" s
-        | NotIndexable value ->
-            eprintf "%s is not indexable"
-              (Interpreter.ValueType.string_of_value value)
-        | InvalidIndex (expr, value) ->
-            eprintf "%s is not a valid index" (Kawa.string_of_expr expr)
-        | Division_by_zero expr -> eprintf "Divisionby zero"
-        | Anomaly -> eprintf "anormal 👽"
-        | UnexpectedType (typ1, typ2) ->
-            eprintf "expected %s got %s" (Kawa.string_of_typ typ1)
-              (Kawa.string_of_typ typ2));
-        (* s; *)
+        | InvalidIndex (idx, length, nameopt) ->
+            eprintf "index %s is out of bound %s %s" (string_of_int idx)
+              (match nameopt with None -> "" | Some s -> "of " ^ s)
+              (if idx >= 0 then
+                 "but the lenth of array is " ^ string_of_int length
+               else "")
+        | Division_by_zero expr -> eprintf "Division by zero"
+        | TypeCastError (t1, t2) ->
+            eprintf "cannot cast a %s into a %s" (Kawa.string_of_typ t1)
+              (Kawa.string_of_typ t2));
+        eprintf "\n";
         exit 1
     | Typechecker.TpError (e, loc) ->
         eprintf "\027[91mTypechecker error: \027[0m@.";
@@ -210,7 +208,8 @@ let () =
         (* | AlreadyDeclared varname -> eprintf "Variable already declared : %s" varname; *)
         | DimensionMismatch -> eprintf "Missmatched dimension"
         | NoParent classname -> eprintf "%s doesnt have any parent" classname
-        | FinalMutation(field, clsname) -> eprintf "Cannot mutate %s.%s as it is declared final" clsname field
+        | FinalMutation (field, clsname) ->
+            eprintf "Cannot mutate %s.%s as it is declared final" clsname field
         | SuperMain ->
             eprintf
               "Why would you call superin main ? Do you know what you are \

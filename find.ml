@@ -67,8 +67,6 @@ let rec get_all_class_methods p class_def =
   in
   all_local_meths @ filtered_parents_methods
 
-
-
 let rec find_method_locally_def p defclass meth_name =
   let meths = get_all_class_methods p defclass in
   match List.find_opt (fun x -> x.method_name = meth_name) meths with
@@ -154,6 +152,8 @@ let rec realtypeofgeneric classdef genericstypes vartype =
   res
 
 let find_attribut_locally classdef attrname =
-  match List.find_opt (fun (k, _, _, _) -> k = attrname) classdef.attributes with
+  match
+    List.find_opt (fun (k, _, _, _) -> k = attrname) classdef.attributes
+  with
   | None -> AttributNotFoud (attrname, classdef) |> fraise
   | Some a -> a

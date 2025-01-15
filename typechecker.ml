@@ -51,7 +51,7 @@ let typecheck_prog (p : program) : program =
   let find_class_def loc =
     try find_class_def p
     with Find.FError (ClassNotFound (n, other)) ->
-      localized_tpraise (ClassNotFound (n, other)) loc 
+      localized_tpraise (ClassNotFound (n, other)) loc
   in
   let find_parent_class_def loc =
     try find_parent_class_def p
@@ -61,13 +61,13 @@ let typecheck_prog (p : program) : program =
   let find_method_locally_def loc =
     try find_method_locally_def p
     with Find.FError (MethodNotFound (n, other)) ->
-      raise (TpError ((MethodNotFound (n, other)), loc))
+      raise (TpError (MethodNotFound (n, other), loc))
   in
   (* Errors conversion *)
   let env_get loc env name =
     try Env.find env name
     with Stack_env.EnvError (UndefinedVariable s) ->
-      localized_tpraise (VariableNotFound(name, Env.get_all_names env)) loc
+      localized_tpraise (VariableNotFound (name, Env.get_all_names env)) loc
   in
 
   let declare_locally loc env x t =
@@ -198,7 +198,7 @@ let typecheck_prog (p : program) : program =
         let typed_n = List.map (fun x -> check_expr x env_stack) n in
         List.iter (fun x -> x.annot <:? TInt) typed_n;
         derive_expr e.annot (NewArray (t, typed_n))
-  and type_mem_access m stack_env loc is_access_mutable: typ =
+  and type_mem_access m stack_env loc is_access_mutable : typ =
     let tpraise err = localized_tpraise err loc in
     let ( <:? ) a b = if not (a <: b) then UnexpectedType (a, b) |> tpraise in
     let env_get = env_get loc in
@@ -223,8 +223,11 @@ let typecheck_prog (p : program) : program =
         in
         let rec find_familly c courrant =
           try
-            let _, res, visible, ismutable = find_attribut_locally c field_name in
-            if is_access_mutable && not !can_edit_final && not ismutable then FinalMutation (field_name, cls_name) |> tpraise;
+            let _, res, visible, ismutable =
+              find_attribut_locally c field_name
+            in
+            if is_access_mutable && (not !can_edit_final) && not ismutable then
+              FinalMutation (field_name, cls_name) |> tpraise;
             (if eou <> This then
                match visible with
                | Public -> ()
@@ -243,7 +246,6 @@ let typecheck_prog (p : program) : program =
     | Array_var (name, l) ->
         let t = type_mem_access name stack_env loc is_access_mutable in
         reduce_dim t l
-
   and check_instr i ret stack_env : instr =
     let derive_instr newi = { instr = newi; loc = i.loc } in
     let tpraise err = localized_tpraise err i.loc in
@@ -339,12 +341,12 @@ let typecheck_prog (p : program) : program =
         let method_stack = Env.new_env class_stack_env in
         List.iter (fun (x, t) -> Env.define_locally method_stack x t) m.locals;
         List.iter (fun (x, t) -> Env.define_locally method_stack x t) m.params;
-        can_edit_final := String.equal m.method_name  "constructor";
+        can_edit_final := String.equal m.method_name "constructor";
         let code = check_seq m.code m.return method_stack in
         can_edit_final := false;
         {
           method_name = m.method_name;
-          code = code;
+          code;
           params = m.params;
           locals = m.locals;
           return = m.return;

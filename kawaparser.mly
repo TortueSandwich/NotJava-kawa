@@ -54,6 +54,7 @@ program:
   i=list(instruction)
   end_handled EOF
   {
+    (* traite le casou les variables sont initialisé à la déclaration *)
     let (globals, globals_init) = 
       List.fold_left 
         (fun (acc_globals, acc_instrs) (defs, instrs) -> 
@@ -212,7 +213,7 @@ def_sans_default:
 mem:
 | s=IDENT {Var(s) }
 | e=expression POINT s=IDENT {Field(e,s)}
-| s=mem e=nonempty_list(dimension) {Array_var(s,e)} // todo expression
+| s=mem e=nonempty_list(dimension) {Array_var(s,e)}
 ;
 
 %inline base_types:
