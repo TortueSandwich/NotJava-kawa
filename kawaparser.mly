@@ -211,9 +211,13 @@ def_sans_default:
 
 
 mem:
+| m=memsimple {m}
+| s=memsimple e=nonempty_list(dimension) {Array_var(s,e)}
+;
+
+memsimple:
 | s=IDENT {Var(s) }
 | e=expression POINT s=IDENT {Field(e,s)}
-| s=mem e=nonempty_list(dimension) {Array_var(s,e)}
 ;
 
 %inline base_types:
